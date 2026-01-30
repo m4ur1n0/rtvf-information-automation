@@ -294,6 +294,7 @@
 
 .section-content::-webkit-scrollbar {
   width: 8px;
+  /* display: none; */
 }
 
 .section-content::-webkit-scrollbar-track {

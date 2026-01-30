@@ -208,7 +208,7 @@ export function TabbedDashboard({ grants, crewCalls, resources, castingCalls }: 
                                 </div>
 
 
-                                <span className={`px-2 py-1 text-xs rounded ${status.color}`}>
+                                <span className={`status-badge ${(status.label === "Open" && "status-open")} ${(status.label === "Closed" && "status-closed")} ${(status.label === "Upcoming" && "status-upcoming")} ${(status.label === "Unclear" && "status-unclear")}`}>
                                     {status.label}
                                 </span>
                             </div>
