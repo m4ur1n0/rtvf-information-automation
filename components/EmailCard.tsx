@@ -12,6 +12,8 @@ interface EmailCardProps {
 export function EmailCard({ email, type }: EmailCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
+  
+
   // Determine status badge based on type
   const getStatusBadge = () => {
     if (type === "Grant") {
