@@ -19,7 +19,7 @@ interface Person {
     phone?: string;
   };
   experience: 'student' | 'emerging' | 'professional';
-  location?: string;
+  recentWork?: string;
 }
 
 const MOCK_PEOPLE: Person[] = [
@@ -37,7 +37,7 @@ const MOCK_PEOPLE: Person[] = [
     availability: 'available',
     contact: { email: 'maya.r@example.com' },
     experience: 'emerging',
-    location: 'Chicago, IL',
+    recentWork: 'Lead in "Remnants" (2025)',
   },
   {
     id: 2,
@@ -53,7 +53,7 @@ const MOCK_PEOPLE: Person[] = [
     availability: 'limited',
     contact: { email: 'jchen.dp@example.com', phone: '555-0123' },
     experience: 'professional',
-    location: 'Los Angeles, CA',
+    recentWork: 'DP on "Homecoming" (2024)',
   },
   {
     id: 3,
@@ -69,7 +69,7 @@ const MOCK_PEOPLE: Person[] = [
     availability: 'available',
     contact: { email: 'alex.creates@example.com' },
     experience: 'emerging',
-    location: 'New York, NY',
+    recentWork: 'Directed "Crossroads" (2025)',
   },
   {
     id: 4,
@@ -85,7 +85,7 @@ const MOCK_PEOPLE: Person[] = [
     availability: 'available',
     contact: { email: 'priya.sound@example.com' },
     experience: 'professional',
-    location: 'Austin, TX',
+    recentWork: 'Sound design on "Voices" (2024)',
   },
   {
     id: 5,
@@ -101,7 +101,7 @@ const MOCK_PEOPLE: Person[] = [
     availability: 'limited',
     contact: { email: 'm.williams.prod@example.com', phone: '555-0456' },
     experience: 'professional',
-    location: 'Atlanta, GA',
+    recentWork: 'Producer on 3 indie features',
   },
   {
     id: 6,
@@ -117,7 +117,7 @@ const MOCK_PEOPLE: Person[] = [
     availability: 'available',
     contact: { email: 'sophie.edits@example.com' },
     experience: 'emerging',
-    location: 'Montreal, QC',
+    recentWork: 'Editor on "Voices" doc (2024)',
   },
   {
     id: 7,
@@ -133,7 +133,7 @@ const MOCK_PEOPLE: Person[] = [
     availability: 'available',
     contact: { email: 'devon.writes@example.com' },
     experience: 'emerging',
-    location: 'Portland, OR',
+    recentWork: '"Echo Chamber" screenplay',
   },
   {
     id: 8,
@@ -149,7 +149,7 @@ const MOCK_PEOPLE: Person[] = [
     availability: 'available',
     contact: { email: 'bella.creates@example.com' },
     experience: 'student',
-    location: 'Miami, FL',
+    recentWork: 'Wrote & directed thesis film (2026)',
   },
 ];
 
@@ -185,7 +185,7 @@ export default function PeopleDirectoryPage() {
         person.skills.some(skill => skill.toLowerCase().includes(searchLower)) ||
         person.pastRoles.some(role => role.toLowerCase().includes(searchLower)) ||
         person.lookingFor.some(item => item.toLowerCase().includes(searchLower)) ||
-        person.location?.toLowerCase().includes(searchLower);
+        person.recentWork?.toLowerCase().includes(searchLower);
 
       return roleMatch && availMatch && searchMatch;
     });
@@ -256,7 +256,7 @@ export default function PeopleDirectoryPage() {
           <span style={{ fontSize: '16px' }}>🔍</span>
           <input
             type="text"
-            placeholder="Search by name, skills, experience, location..."
+            placeholder="Search by name, skills, experience, recent work..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{
@@ -378,7 +378,7 @@ export default function PeopleDirectoryPage() {
         {/* Table Header */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '80px 1fr 180px 120px 150px 100px',
+          gridTemplateColumns: '80px 1fr 180px 120px 200px 100px',
           gap: 'var(--space-md)',
           padding: 'var(--space-md) var(--space-lg)',
           background: 'var(--bg-tertiary)',
@@ -393,7 +393,7 @@ export default function PeopleDirectoryPage() {
           <div>Name</div>
           <div>Role</div>
           <div>Experience</div>
-          <div>Location</div>
+          <div>Recent Work</div>
           <div>Availability</div>
         </div>
 
@@ -414,7 +414,7 @@ export default function PeopleDirectoryPage() {
                 onClick={() => setSelectedPerson(person)}
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '80px 1fr 180px 120px 150px 100px',
+                  gridTemplateColumns: '80px 1fr 180px 120px 200px 100px',
                   gap: 'var(--space-md)',
                   padding: 'var(--space-md) var(--space-lg)',
                   borderBottom: '1px solid var(--border-subtle)',
@@ -495,9 +495,11 @@ export default function PeopleDirectoryPage() {
                 <div style={{
                   fontSize: '12px',
                   color: 'var(--text-tertiary)',
-                  fontFamily: 'var(--font-mono)',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
                 }}>
-                  {person.location || 'N/A'}
+                  {person.recentWork || 'N/A'}
                 </div>
                 <div>
                   <span className={`status-badge ${getAvailabilityColor(person.availability)}`}>
@@ -600,7 +602,7 @@ export default function PeopleDirectoryPage() {
                     {selectedPerson.name}
                   </h3>
                   <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginBottom: 'var(--space-sm)' }}>
-                    {selectedPerson.pronouns} • {selectedPerson.location}
+                    {selectedPerson.pronouns}
                   </div>
                   <div className="tag-list">
                     <span className="tag">{selectedPerson.primaryRole.toUpperCase()}</span>

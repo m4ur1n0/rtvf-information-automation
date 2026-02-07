@@ -21,8 +21,8 @@ const MOCK_POSTS: Post[] = [
     content: 'Our lead actor is sick. Need someone who knows the role of Hamlet. Show starts at 7 PM!',
     author: 'Sarah Chen',
     category: 'cast',
-    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    expiresAt: new Date(Date.now() + 4 * 60 * 60 * 1000),
+    createdAt: new Date('2026-02-10T14:00:00'),
+    expiresAt: new Date('2026-02-12T19:00:00'),
     urgent: true,
   },
   {
@@ -31,8 +31,8 @@ const MOCK_POSTS: Post[] = [
     content: 'Need a rotary phone for tomorrow\'s rehearsal. Can return it by Friday. Will credit you in the program!',
     author: 'Mike Torres',
     category: 'props',
-    createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000),
-    expiresAt: new Date(Date.now() + 23 * 60 * 60 * 1000),
+    createdAt: new Date('2026-02-09T10:00:00'),
+    expiresAt: new Date('2026-02-14T17:00:00'),
     urgent: false,
   },
   {
@@ -41,8 +41,8 @@ const MOCK_POSTS: Post[] = [
     content: 'Our regular sound person had a family emergency. Need someone comfortable with a Yamaha mixer. Paid gig, $200.',
     author: 'Jessica Park',
     category: 'crew',
-    createdAt: new Date(Date.now() - 30 * 60 * 1000),
-    expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
+    createdAt: new Date('2026-02-08T15:30:00'),
+    expiresAt: new Date('2026-02-22T23:59:00'),
     urgent: true,
   },
   {
@@ -51,8 +51,8 @@ const MOCK_POSTS: Post[] = [
     content: 'Clearing out storage. Heavy duty rolling rack, great condition. First come first served!',
     author: 'David Kim',
     category: 'misc',
-    createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000),
-    expiresAt: new Date(Date.now() + 7 * 60 * 60 * 1000),
+    createdAt: new Date('2026-02-07T09:00:00'),
+    expiresAt: new Date('2026-02-16T18:00:00'),
     urgent: false,
   },
   {
@@ -61,8 +61,8 @@ const MOCK_POSTS: Post[] = [
     content: 'This is an example of an expired post that won\'t show by default.',
     author: 'Alex Rivera',
     category: 'cast',
-    createdAt: new Date(Date.now() - 50 * 60 * 60 * 1000),
-    expiresAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+    createdAt: new Date('2026-01-15T10:00:00'),
+    expiresAt: new Date('2026-02-01T23:59:00'),
     urgent: false,
   },
 ];
@@ -187,6 +187,7 @@ export default function TempForumPage() {
   const [showExpired, setShowExpired] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [bookmarkedPosts, setBookmarkedPosts] = useState<number[]>([]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -194,6 +195,43 @@ export default function TempForumPage() {
     }, 60000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    // Load bookmarked posts
+    const bookmarks = localStorage.getItem('bookmarkedTempPosts');
+    if (bookmarks) {
+      setBookmarkedPosts(JSON.parse(bookmarks));
+    }
+  }, []);
+
+  const handleBookmark = (postId: number) => {
+    const newBookmarks = bookmarkedPosts.includes(postId)
+      ? bookmarkedPosts.filter(id => id !== postId)
+      : [...bookmarkedPosts, postId];
+
+    setBookmarkedPosts(newBookmarks);
+    localStorage.setItem('bookmarkedTempPosts', JSON.stringify(newBookmarks));
+
+    // Also save to calendar items
+    const post = MOCK_POSTS.find(p => p.id === postId);
+    if (post) {
+      const calendarItems = JSON.parse(localStorage.getItem('calendarItems') || '[]');
+      if (newBookmarks.includes(postId)) {
+        calendarItems.push({
+          id: `temp-post-${postId}`,
+          title: post.title,
+          type: 'temp-post',
+          date: post.expiresAt.toISOString(),
+          link: '/temp-forum',
+        });
+      } else {
+        const filtered = calendarItems.filter((item: any) => item.id !== `temp-post-${postId}`);
+        localStorage.setItem('calendarItems', JSON.stringify(filtered));
+        return;
+      }
+      localStorage.setItem('calendarItems', JSON.stringify(calendarItems));
+    }
+  };
 
   const activePosts = posts.filter(post => post.expiresAt > currentTime);
   const expiredPosts = posts.filter(post => post.expiresAt <= currentTime);
@@ -218,6 +256,10 @@ export default function TempForumPage() {
               <div className="stat-pill stat-open">
                 <span className="stat-value">{activePosts.length}</span>
                 <span className="stat-label">active</span>
+              </div>
+              <div className="stat-pill stat-total">
+                <span className="stat-value">{bookmarkedPosts.length}</span>
+                <span className="stat-label">bookmarked</span>
               </div>
               {expiredPosts.length > 0 && (
                 <div className="stat-pill stat-total">
@@ -311,9 +353,37 @@ export default function TempForumPage() {
             </div>
           ) : (
             <div className="row-list">
-              {sortedPosts.map((post) => (
-                <PostRow key={post.id} post={post} currentTime={currentTime} />
-              ))}
+              {sortedPosts.map((post) => {
+                const isBookmarked = bookmarkedPosts.includes(post.id);
+                return (
+                  <div key={post.id} style={{ position: 'relative' }}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleBookmark(post.id);
+                      }}
+                      style={{
+                        position: 'absolute',
+                        top: 'var(--space-md)',
+                        right: 'var(--space-md)',
+                        zIndex: 10,
+                        padding: 'var(--space-xs) var(--space-sm)',
+                        background: isBookmarked ? 'var(--accent-grant)' : 'var(--bg-elevated)',
+                        border: `1px solid ${isBookmarked ? 'var(--accent-grant)' : 'var(--border-default)'}`,
+                        borderRadius: 'var(--radius-sm)',
+                        color: isBookmarked ? 'var(--bg-primary)' : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        fontSize: '16px',
+                        transition: 'all 0.2s ease',
+                      }}
+                      title={isBookmarked ? 'Remove bookmark' : 'Bookmark post'}
+                    >
+                      {isBookmarked ? '★' : '☆'}
+                    </button>
+                    <PostRow post={post} currentTime={currentTime} />
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

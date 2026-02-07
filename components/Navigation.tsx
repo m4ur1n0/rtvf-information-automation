@@ -75,6 +75,93 @@ export function Navigation() {
           </Link>
 
           <Link
+            href="/petitions"
+            style={{
+              padding: 'var(--space-sm) var(--space-md)',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '13px',
+              fontWeight: 500,
+              textDecoration: 'none',
+              color: isActive('/petitions') ? 'var(--text-primary)' : 'var(--text-tertiary)',
+              background: isActive('/petitions') ? 'var(--bg-elevated)' : 'transparent',
+              border: `1px solid ${isActive('/petitions') ? 'var(--border-emphasis)' : 'transparent'}`,
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              if (!isActive('/petitions')) {
+                e.currentTarget.style.background = 'var(--bg-tertiary)';
+                e.currentTarget.style.color = 'var(--text-secondary)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isActive('/petitions')) {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = 'var(--text-tertiary)';
+              }
+            }}
+          >
+            📋 Petitions
+          </Link>
+
+          <Link
+            href="/grants"
+            style={{
+              padding: 'var(--space-sm) var(--space-md)',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '13px',
+              fontWeight: 500,
+              textDecoration: 'none',
+              color: isActive('/grants') ? 'var(--text-primary)' : 'var(--text-tertiary)',
+              background: isActive('/grants') ? 'var(--bg-elevated)' : 'transparent',
+              border: `1px solid ${isActive('/grants') ? 'var(--border-emphasis)' : 'transparent'}`,
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              if (!isActive('/grants')) {
+                e.currentTarget.style.background = 'var(--bg-tertiary)';
+                e.currentTarget.style.color = 'var(--text-secondary)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isActive('/grants')) {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = 'var(--text-tertiary)';
+              }
+            }}
+          >
+            💰 Grants
+          </Link>
+
+          <Link
+            href="/locations"
+            style={{
+              padding: 'var(--space-sm) var(--space-md)',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '13px',
+              fontWeight: 500,
+              textDecoration: 'none',
+              color: isActive('/locations') ? 'var(--text-primary)' : 'var(--text-tertiary)',
+              background: isActive('/locations') ? 'var(--bg-elevated)' : 'transparent',
+              border: `1px solid ${isActive('/locations') ? 'var(--border-emphasis)' : 'transparent'}`,
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              if (!isActive('/locations')) {
+                e.currentTarget.style.background = 'var(--bg-tertiary)';
+                e.currentTarget.style.color = 'var(--text-secondary)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isActive('/locations')) {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = 'var(--text-tertiary)';
+              }
+            }}
+          >
+            📍 Locations
+          </Link>
+
+          <Link
             href="/people-directory"
             style={{
               padding: 'var(--space-sm) var(--space-md)',
@@ -130,6 +217,35 @@ export function Navigation() {
             }}
           >
             ⏰ Temporary Posts
+          </Link>
+
+          <Link
+            href="/calendar"
+            style={{
+              padding: 'var(--space-sm) var(--space-md)',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '13px',
+              fontWeight: 500,
+              textDecoration: 'none',
+              color: isActive('/calendar') ? 'var(--text-primary)' : 'var(--text-tertiary)',
+              background: isActive('/calendar') ? 'var(--bg-elevated)' : 'transparent',
+              border: `1px solid ${isActive('/calendar') ? 'var(--border-emphasis)' : 'transparent'}`,
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              if (!isActive('/calendar')) {
+                e.currentTarget.style.background = 'var(--bg-tertiary)';
+                e.currentTarget.style.color = 'var(--text-secondary)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isActive('/calendar')) {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = 'var(--text-tertiary)';
+              }
+            }}
+          >
+            📅 Calendar
           </Link>
         </div>
 
