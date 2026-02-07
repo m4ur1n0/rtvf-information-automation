@@ -162,6 +162,35 @@ export function Navigation() {
           </Link>
 
           <Link
+            href="/production-handbook"
+            style={{
+              padding: 'var(--space-sm) var(--space-md)',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '13px',
+              fontWeight: 500,
+              textDecoration: 'none',
+              color: isActive('/production-handbook') ? 'var(--text-primary)' : 'var(--text-tertiary)',
+              background: isActive('/production-handbook') ? 'var(--bg-elevated)' : 'transparent',
+              border: `1px solid ${isActive('/production-handbook') ? 'var(--border-emphasis)' : 'transparent'}`,
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              if (!isActive('/production-handbook')) {
+                e.currentTarget.style.background = 'var(--bg-tertiary)';
+                e.currentTarget.style.color = 'var(--text-secondary)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isActive('/production-handbook')) {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = 'var(--text-tertiary)';
+              }
+            }}
+          >
+            📘 Handbook Wiki
+          </Link>
+
+          <Link
             href="/people-directory"
             style={{
               padding: 'var(--space-sm) var(--space-md)',

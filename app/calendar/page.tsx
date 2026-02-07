@@ -184,11 +184,11 @@ export default function CalendarPage() {
           endAccessor="end"
           style={{ height: '100%' }}
           eventPropGetter={eventStyleGetter}
-          onSelectEvent={(event) => setSelectedEvent(event)}
+          onSelectEvent={(event: CalendarEvent) => setSelectedEvent(event)}
           view={view}
-          onView={(newView) => setView(newView as 'month' | 'week' | 'day' | 'agenda')}
+          onView={(newView: 'month' | 'week' | 'day' | 'agenda') => setView(newView)}
           date={currentDate}
-          onNavigate={(newDate) => setCurrentDate(newDate)}
+          onNavigate={(newDate: Date) => setCurrentDate(newDate)}
         />
       </div>
 
