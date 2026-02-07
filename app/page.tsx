@@ -58,8 +58,8 @@ export default async function Home() {
   const openGrants = grants.emails.filter(e => e.tags.includes("GRANT_OPEN")).length;
 
   return (
-    <div className="dashboard-container">
-      <header className="dashboard-header">
+    <div className="dashboard-container" style={{ paddingTop: 0 }}>
+      <header className="dashboard-header" style={{ marginTop: 0 }}>
         <div className="header-content">
           <div className="header-top">
             <h1 className="dashboard-title">RTVF Opportunities</h1>
