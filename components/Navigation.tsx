@@ -1,12 +1,50 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import {
+  Sparkles,
+  MapPin,
+  BookOpen,
+  Clock,
+  Calendar as CalendarIcon,
+  Users,
+  ChevronDown,
+  FileText,
+  DollarSign
+} from 'lucide-react';
 
 export function Navigation() {
   const pathname = usePathname();
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
   const isActive = (path: string) => pathname === path;
+  const isDropdownActive = (paths: string[]) => paths.includes(pathname);
+
+  const toggleDropdown = (name: string) => {
+    setOpenDropdown(openDropdown === name ? null : name);
+  };
+
+  const closeDropdown = () => {
+    setOpenDropdown(null);
+  };
+
+  const navItemStyle = (active: boolean) => ({
+    padding: 'var(--space-sm) var(--space-md)',
+    borderRadius: 'var(--radius-sm)',
+    fontSize: '13px',
+    fontWeight: 500,
+    textDecoration: 'none',
+    color: active ? 'var(--text-primary)' : 'var(--text-tertiary)',
+    background: active ? 'var(--bg-elevated)' : 'transparent',
+    border: `1px solid ${active ? 'var(--border-emphasis)' : 'transparent'}`,
+    transition: 'all 0.2s ease',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    cursor: 'pointer',
+  });
 
   return (
     <nav style={{
@@ -30,121 +68,119 @@ export function Navigation() {
           href="/"
           style={{
             fontFamily: 'var(--font-display)',
-            fontSize: '18px',
+            fontSize: '20px',
             fontWeight: 700,
             color: 'var(--text-primary)',
             textDecoration: 'none',
             letterSpacing: '-0.02em',
+            marginRight: 'var(--space-md)',
           }}
         >
-          RTVF Info
+          ListService
         </Link>
 
         <div style={{
           display: 'flex',
           gap: 'var(--space-sm)',
           flex: 1,
+          alignItems: 'center',
         }}>
-          <Link
-            href="/"
-            style={{
-              padding: 'var(--space-sm) var(--space-md)',
-              borderRadius: 'var(--radius-sm)',
-              fontSize: '13px',
-              fontWeight: 500,
-              textDecoration: 'none',
-              color: isActive('/') ? 'var(--text-primary)' : 'var(--text-tertiary)',
-              background: isActive('/') ? 'var(--bg-elevated)' : 'transparent',
-              border: `1px solid ${isActive('/') ? 'var(--border-emphasis)' : 'transparent'}`,
-              transition: 'all 0.2s ease',
-            }}
-            onMouseEnter={(e) => {
-              if (!isActive('/')) {
-                e.currentTarget.style.background = 'var(--bg-tertiary)';
-                e.currentTarget.style.color = 'var(--text-secondary)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isActive('/')) {
-                e.currentTarget.style.background = 'transparent';
-                e.currentTarget.style.color = 'var(--text-tertiary)';
-              }
-            }}
-          >
-            📊 Dashboard
-          </Link>
+          {/* Opportunities Dropdown */}
+          <div style={{ position: 'relative' }}>
+            <button
+              style={navItemStyle(isDropdownActive(['/petitions', '/grants']))}
+              onClick={() => toggleDropdown('opportunities')}
+              onMouseEnter={(e) => {
+                if (!isDropdownActive(['/petitions', '/grants'])) {
+                  e.currentTarget.style.background = 'var(--bg-tertiary)';
+                  e.currentTarget.style.color = 'var(--text-secondary)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isDropdownActive(['/petitions', '/grants'])) {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.color = 'var(--text-tertiary)';
+                }
+              }}
+            >
+              <Sparkles size={14} />
+              Opportunities
+              <ChevronDown size={14} />
+            </button>
+            {openDropdown === 'opportunities' && (
+              <div style={{
+                position: 'absolute',
+                top: 'calc(100% + 4px)',
+                left: 0,
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border-emphasis)',
+                borderRadius: 'var(--radius-sm)',
+                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                minWidth: '160px',
+                zIndex: 100,
+              }}>
+                <Link
+                  href="/petitions"
+                  onClick={closeDropdown}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: 'var(--space-sm) var(--space-md)',
+                    fontSize: '13px',
+                    color: isActive('/petitions') ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                    textDecoration: 'none',
+                    background: isActive('/petitions') ? 'var(--bg-tertiary)' : 'transparent',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'var(--bg-tertiary)';
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive('/petitions')) {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = 'var(--text-tertiary)';
+                    }
+                  }}
+                >
+                  <FileText size={14} />
+                  Petitions
+                </Link>
+                <Link
+                  href="/grants"
+                  onClick={closeDropdown}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: 'var(--space-sm) var(--space-md)',
+                    fontSize: '13px',
+                    color: isActive('/grants') ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                    textDecoration: 'none',
+                    background: isActive('/grants') ? 'var(--bg-tertiary)' : 'transparent',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'var(--bg-tertiary)';
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive('/grants')) {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = 'var(--text-tertiary)';
+                    }
+                  }}
+                >
+                  <DollarSign size={14} />
+                  Grants
+                </Link>
+              </div>
+            )}
+          </div>
 
-          <Link
-            href="/petitions"
-            style={{
-              padding: 'var(--space-sm) var(--space-md)',
-              borderRadius: 'var(--radius-sm)',
-              fontSize: '13px',
-              fontWeight: 500,
-              textDecoration: 'none',
-              color: isActive('/petitions') ? 'var(--text-primary)' : 'var(--text-tertiary)',
-              background: isActive('/petitions') ? 'var(--bg-elevated)' : 'transparent',
-              border: `1px solid ${isActive('/petitions') ? 'var(--border-emphasis)' : 'transparent'}`,
-              transition: 'all 0.2s ease',
-            }}
-            onMouseEnter={(e) => {
-              if (!isActive('/petitions')) {
-                e.currentTarget.style.background = 'var(--bg-tertiary)';
-                e.currentTarget.style.color = 'var(--text-secondary)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isActive('/petitions')) {
-                e.currentTarget.style.background = 'transparent';
-                e.currentTarget.style.color = 'var(--text-tertiary)';
-              }
-            }}
-          >
-            📋 Petitions
-          </Link>
-
-          <Link
-            href="/grants"
-            style={{
-              padding: 'var(--space-sm) var(--space-md)',
-              borderRadius: 'var(--radius-sm)',
-              fontSize: '13px',
-              fontWeight: 500,
-              textDecoration: 'none',
-              color: isActive('/grants') ? 'var(--text-primary)' : 'var(--text-tertiary)',
-              background: isActive('/grants') ? 'var(--bg-elevated)' : 'transparent',
-              border: `1px solid ${isActive('/grants') ? 'var(--border-emphasis)' : 'transparent'}`,
-              transition: 'all 0.2s ease',
-            }}
-            onMouseEnter={(e) => {
-              if (!isActive('/grants')) {
-                e.currentTarget.style.background = 'var(--bg-tertiary)';
-                e.currentTarget.style.color = 'var(--text-secondary)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isActive('/grants')) {
-                e.currentTarget.style.background = 'transparent';
-                e.currentTarget.style.color = 'var(--text-tertiary)';
-              }
-            }}
-          >
-            💰 Grants
-          </Link>
-
+          {/* Locations */}
           <Link
             href="/locations"
-            style={{
-              padding: 'var(--space-sm) var(--space-md)',
-              borderRadius: 'var(--radius-sm)',
-              fontSize: '13px',
-              fontWeight: 500,
-              textDecoration: 'none',
-              color: isActive('/locations') ? 'var(--text-primary)' : 'var(--text-tertiary)',
-              background: isActive('/locations') ? 'var(--bg-elevated)' : 'transparent',
-              border: `1px solid ${isActive('/locations') ? 'var(--border-emphasis)' : 'transparent'}`,
-              transition: 'all 0.2s ease',
-            }}
+            style={navItemStyle(isActive('/locations'))}
             onMouseEnter={(e) => {
               if (!isActive('/locations')) {
                 e.currentTarget.style.background = 'var(--bg-tertiary)';
@@ -158,80 +194,79 @@ export function Navigation() {
               }
             }}
           >
-            📍 Locations
+            <MapPin size={14} />
+            Locations
           </Link>
 
-          <Link
-            href="/production-handbook"
-            style={{
-              padding: 'var(--space-sm) var(--space-md)',
-              borderRadius: 'var(--radius-sm)',
-              fontSize: '13px',
-              fontWeight: 500,
-              textDecoration: 'none',
-              color: isActive('/production-handbook') ? 'var(--text-primary)' : 'var(--text-tertiary)',
-              background: isActive('/production-handbook') ? 'var(--bg-elevated)' : 'transparent',
-              border: `1px solid ${isActive('/production-handbook') ? 'var(--border-emphasis)' : 'transparent'}`,
-              transition: 'all 0.2s ease',
-            }}
-            onMouseEnter={(e) => {
-              if (!isActive('/production-handbook')) {
-                e.currentTarget.style.background = 'var(--bg-tertiary)';
-                e.currentTarget.style.color = 'var(--text-secondary)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isActive('/production-handbook')) {
-                e.currentTarget.style.background = 'transparent';
-                e.currentTarget.style.color = 'var(--text-tertiary)';
-              }
-            }}
-          >
-            📘 Handbook Wiki
-          </Link>
+          {/* Information Dropdown */}
+          <div style={{ position: 'relative' }}>
+            <button
+              style={navItemStyle(isDropdownActive(['/production-handbook']))}
+              onClick={() => toggleDropdown('information')}
+              onMouseEnter={(e) => {
+                if (!isDropdownActive(['/production-handbook'])) {
+                  e.currentTarget.style.background = 'var(--bg-tertiary)';
+                  e.currentTarget.style.color = 'var(--text-secondary)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isDropdownActive(['/production-handbook'])) {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.color = 'var(--text-tertiary)';
+                }
+              }}
+            >
+              <BookOpen size={14} />
+              Information
+              <ChevronDown size={14} />
+            </button>
+            {openDropdown === 'information' && (
+              <div style={{
+                position: 'absolute',
+                top: 'calc(100% + 4px)',
+                left: 0,
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border-emphasis)',
+                borderRadius: 'var(--radius-sm)',
+                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                minWidth: '160px',
+                zIndex: 100,
+              }}>
+                <Link
+                  href="/production-handbook"
+                  onClick={closeDropdown}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: 'var(--space-sm) var(--space-md)',
+                    fontSize: '13px',
+                    color: isActive('/production-handbook') ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                    textDecoration: 'none',
+                    background: isActive('/production-handbook') ? 'var(--bg-tertiary)' : 'transparent',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'var(--bg-tertiary)';
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive('/production-handbook')) {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = 'var(--text-tertiary)';
+                    }
+                  }}
+                >
+                  <BookOpen size={14} />
+                  Handbook Wiki
+                </Link>
+              </div>
+            )}
+          </div>
 
-          <Link
-            href="/people-directory"
-            style={{
-              padding: 'var(--space-sm) var(--space-md)',
-              borderRadius: 'var(--radius-sm)',
-              fontSize: '13px',
-              fontWeight: 500,
-              textDecoration: 'none',
-              color: isActive('/people-directory') ? 'var(--text-primary)' : 'var(--text-tertiary)',
-              background: isActive('/people-directory') ? 'var(--bg-elevated)' : 'transparent',
-              border: `1px solid ${isActive('/people-directory') ? 'var(--border-emphasis)' : 'transparent'}`,
-              transition: 'all 0.2s ease',
-            }}
-            onMouseEnter={(e) => {
-              if (!isActive('/people-directory')) {
-                e.currentTarget.style.background = 'var(--bg-tertiary)';
-                e.currentTarget.style.color = 'var(--text-secondary)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isActive('/people-directory')) {
-                e.currentTarget.style.background = 'transparent';
-                e.currentTarget.style.color = 'var(--text-tertiary)';
-              }
-            }}
-          >
-            👥 People
-          </Link>
-
+          {/* Temporary Posts */}
           <Link
             href="/temp-forum"
-            style={{
-              padding: 'var(--space-sm) var(--space-md)',
-              borderRadius: 'var(--radius-sm)',
-              fontSize: '13px',
-              fontWeight: 500,
-              textDecoration: 'none',
-              color: isActive('/temp-forum') ? 'var(--text-primary)' : 'var(--text-tertiary)',
-              background: isActive('/temp-forum') ? 'var(--bg-elevated)' : 'transparent',
-              border: `1px solid ${isActive('/temp-forum') ? 'var(--border-emphasis)' : 'transparent'}`,
-              transition: 'all 0.2s ease',
-            }}
+            style={navItemStyle(isActive('/temp-forum'))}
             onMouseEnter={(e) => {
               if (!isActive('/temp-forum')) {
                 e.currentTarget.style.background = 'var(--bg-tertiary)';
@@ -245,22 +280,14 @@ export function Navigation() {
               }
             }}
           >
-            ⏰ Temporary Posts
+            <Clock size={14} />
+            Temporary Posts
           </Link>
 
+          {/* Calendar */}
           <Link
             href="/calendar"
-            style={{
-              padding: 'var(--space-sm) var(--space-md)',
-              borderRadius: 'var(--radius-sm)',
-              fontSize: '13px',
-              fontWeight: 500,
-              textDecoration: 'none',
-              color: isActive('/calendar') ? 'var(--text-primary)' : 'var(--text-tertiary)',
-              background: isActive('/calendar') ? 'var(--bg-elevated)' : 'transparent',
-              border: `1px solid ${isActive('/calendar') ? 'var(--border-emphasis)' : 'transparent'}`,
-              transition: 'all 0.2s ease',
-            }}
+            style={navItemStyle(isActive('/calendar'))}
             onMouseEnter={(e) => {
               if (!isActive('/calendar')) {
                 e.currentTarget.style.background = 'var(--bg-tertiary)';
@@ -274,7 +301,29 @@ export function Navigation() {
               }
             }}
           >
-            📅 Calendar
+            <CalendarIcon size={14} />
+            Calendar
+          </Link>
+
+          {/* People - Last Link */}
+          <Link
+            href="/people-directory"
+            style={navItemStyle(isActive('/people-directory'))}
+            onMouseEnter={(e) => {
+              if (!isActive('/people-directory')) {
+                e.currentTarget.style.background = 'var(--bg-tertiary)';
+                e.currentTarget.style.color = 'var(--text-secondary)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isActive('/people-directory')) {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = 'var(--text-tertiary)';
+              }
+            }}
+          >
+            <Users size={14} />
+            People
           </Link>
         </div>
 
