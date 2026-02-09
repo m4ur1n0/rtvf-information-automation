@@ -220,6 +220,7 @@ export function TabbedDashboard({ grants, crewCalls, resources, castingCalls }: 
                                 className={`list-item-wrapper ${selectedEmail?.id === email.id ? "list-item-selected" : ""}`}
                                 onClick={() => setSelectedEmail(email)}
                             >
+                                
                                 <div className="list-item-header">
                                     <div className="list-item-main">
                                         <div className="list-item-subject">{email.subject || "(No subject)"}</div>
