@@ -13,11 +13,15 @@ import {
   ChevronDown,
   FileText,
   DollarSign,
+  Sun,
+  Moon,
 } from "lucide-react";
+import { useTheme } from "./ThemeProvider";
 
 export function Navigation() {
   const pathname = usePathname();
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const { theme, toggleTheme } = useTheme();
 
   const isActive = (path: string) => pathname === path;
   const isDropdownActive = (paths: string[]) => paths.includes(pathname);
@@ -228,14 +232,49 @@ export function Navigation() {
 
         <div
           style={{
-            fontSize: "11px",
-            color: "var(--text-muted)",
-            fontFamily: "var(--font-mono)",
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
+            display: "flex",
+            alignItems: "center",
+            gap: "var(--space-md)",
           }}
         >
-          HCI Prototypes
+          <div
+            style={{
+              fontSize: "11px",
+              color: "var(--text-muted)",
+              fontFamily: "var(--font-mono)",
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+            }}
+          >
+            HCI Prototypes
+          </div>
+          <button
+            onClick={toggleTheme}
+            aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "32px",
+              height: "32px",
+              borderRadius: "var(--radius-sm)",
+              border: "1px solid var(--border-default)",
+              background: "var(--bg-tertiary)",
+              color: "var(--text-secondary)",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = "var(--border-emphasis)";
+              e.currentTarget.style.color = "var(--text-primary)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = "var(--border-default)";
+              e.currentTarget.style.color = "var(--text-secondary)";
+            }}
+          >
+            {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
         </div>
       </div>
     </nav>
