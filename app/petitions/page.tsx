@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { addDays, format } from 'date-fns';
 
 interface TimeSlot {
   id: string;
@@ -17,7 +18,11 @@ interface Petition {
   description: string;
   deadline: string;
   location: string;
+  contactName: string;
   contactEmail: string;
+  scriptLink?: string;
+  posterImage?: string;
+  roles?: string[];
   questions: {
     id: string;
     question: string;
@@ -36,19 +41,16 @@ const MOCK_PETITIONS: Petition[] = [
     description: 'Art in Action brings together multiple artistic mediums—like music, spoken word, visual art, dance, and film—around a unifying theme. This event will take place Week 6 of Winter Quarter.',
     deadline: '2026-02-19T23:59:00',
     location: 'Shake Smart, Norris Center',
+    contactName: 'Kate Moore',
     contactEmail: 'katemoores2028@u.northwestern.edu',
+    posterImage: '/placeholder-poster.jpg',
+    roles: ['Musician', 'Dancer', 'Spoken Word Artist', 'Visual Artist', 'Filmmaker'],
     questions: [
       {
         id: 'name',
-        question: 'Name',
+        question: 'Full Name',
         type: 'text',
         required: true,
-      },
-      {
-        id: 'pronouns',
-        question: 'Pronouns (if you are comfortable sharing)',
-        type: 'text',
-        required: false,
       },
       {
         id: 'email',
@@ -57,47 +59,17 @@ const MOCK_PETITIONS: Petition[] = [
         required: true,
       },
       {
-        id: 'medium',
-        question: 'What\'s your artistic medium? (e.g., music, dance, spoken word, visual art, theater, etc.)',
-        type: 'text',
-        required: true,
-      },
-      {
-        id: 'performance',
-        question: 'Tell us a little bit about what type of performance you\'d like to create for the event.',
-        type: 'textarea',
-        required: true,
-      },
-      {
-        id: 'collaboration',
-        question: 'What excites you about being part of this kind of collaborative event?',
-        type: 'textarea',
-        required: true,
-      },
-      {
-        id: 'commitments',
-        question: 'Do you have any major commitments for the Winter 2026 Quarter?',
-        type: 'textarea',
-        required: true,
-      },
-      {
-        id: 'workshops',
-        question: 'Would you be interested in helping at workshops (5-6pm: 2/7, 2/21, 2/27) in a teaching/mentorship capacity?',
+        id: 'role_interest',
+        question: 'Which role(s) are you interested in?',
         type: 'select',
         required: true,
-        options: ['Yes, all workshops', 'Yes, some workshops', 'No, not interested', 'Maybe, need more info'],
+        options: ['Musician', 'Dancer', 'Spoken Word Artist', 'Visual Artist', 'Filmmaker', 'Other'],
       },
       {
-        id: 'accessibility',
-        question: 'Is there anything we can do to make the audition process more accessible for you?',
+        id: 'availability',
+        question: 'Brief availability notes (e.g. conflicts, preferred times)',
         type: 'textarea',
-        required: false,
-      },
-      {
-        id: 'additional',
-        question: 'Anything else you want us to know?',
-        type: 'textarea',
-        required: false,
+        required: true,
       },
     ],
     timeSlots: [
@@ -118,11 +90,14 @@ const MOCK_PETITIONS: Petition[] = [
     description: 'Looking for a skilled cinematographer for a 15-minute dramatic short film. Shooting over 3 weekends in March. MAG-funded project.',
     deadline: '2026-02-28T23:59:00',
     location: 'Louis Hall Production Studio',
+    contactName: 'Jordan Ellis',
     contactEmail: 'filmmaker@u.northwestern.edu',
+    scriptLink: 'https://docs.google.com/document/d/example',
+    roles: ['Cinematographer', 'Camera Operator', 'Gaffer'],
     questions: [
       {
         id: 'name',
-        question: 'Name',
+        question: 'Full Name',
         type: 'text',
         required: true,
       },
@@ -133,29 +108,17 @@ const MOCK_PETITIONS: Petition[] = [
         required: true,
       },
       {
-        id: 'experience',
-        question: 'Describe your cinematography experience',
-        type: 'textarea',
+        id: 'role_interest',
+        question: 'Which role are you most interested in?',
+        type: 'select',
         required: true,
-      },
-      {
-        id: 'equipment',
-        question: 'What camera equipment are you comfortable with?',
-        type: 'textarea',
-        required: true,
-      },
-      {
-        id: 'reel',
-        question: 'Link to portfolio/reel',
-        type: 'text',
-        required: true,
+        options: ['Cinematographer', 'Camera Operator', 'Gaffer', 'Other'],
       },
       {
         id: 'availability',
-        question: 'Are you available April 5-6, 12-13, 19-20?',
-        type: 'select',
+        question: 'Are you available April 5-6, 12-13, 19-20? Any conflicts?',
+        type: 'textarea',
         required: true,
-        options: ['Yes, all weekends', 'Yes, 2 weekends', 'Yes, 1 weekend', 'No, not available'],
       },
     ],
     timeSlots: [
@@ -174,49 +137,21 @@ export default function PetitionsPage() {
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [savedUserData, setSavedUserData] = useState<Record<string, string>>({});
   const [showForm, setShowForm] = useState(false);
-  const [bookmarkedPetitions, setBookmarkedPetitions] = useState<number[]>([]);
 
   useEffect(() => {
-    // Load saved user data for auto-fill
     const saved = localStorage.getItem('userFormData');
     if (saved) {
       setSavedUserData(JSON.parse(saved));
     }
-
-    // Load bookmarked petitions
-    const bookmarks = localStorage.getItem('bookmarkedPetitions');
-    if (bookmarks) {
-      setBookmarkedPetitions(JSON.parse(bookmarks));
-    }
   }, []);
 
-  const handleBookmark = (petitionId: number) => {
-    const newBookmarks = bookmarkedPetitions.includes(petitionId)
-      ? bookmarkedPetitions.filter(id => id !== petitionId)
-      : [...bookmarkedPetitions, petitionId];
-
-    setBookmarkedPetitions(newBookmarks);
-    localStorage.setItem('bookmarkedPetitions', JSON.stringify(newBookmarks));
-
-    // Also save to calendar items
-    const petition = MOCK_PETITIONS.find(p => p.id === petitionId);
-    if (petition) {
-      const calendarItems = JSON.parse(localStorage.getItem('calendarItems') || '[]');
-      if (newBookmarks.includes(petitionId)) {
-        calendarItems.push({
-          id: `petition-${petitionId}`,
-          title: petition.title,
-          type: 'petition',
-          date: petition.deadline,
-          link: '/petitions',
-        });
-      } else {
-        const filtered = calendarItems.filter((item: any) => item.id !== `petition-${petitionId}`);
-        localStorage.setItem('calendarItems', JSON.stringify(filtered));
-        return;
-      }
-      localStorage.setItem('calendarItems', JSON.stringify(calendarItems));
-    }
+  const generateGoogleCalendarUrl = (petition: Petition) => {
+    const deadlineDate = new Date(petition.deadline);
+    const startDate = format(deadlineDate, 'yyyyMMdd');
+    const endDate = format(addDays(deadlineDate, 1), 'yyyyMMdd');
+    const title = encodeURIComponent(petition.title);
+    const details = encodeURIComponent(`Deadline: ${new Date(petition.deadline).toLocaleString()}\nLocation: ${petition.location}\nContact: ${petition.contactName} (${petition.contactEmail})\n\n${petition.description}`);
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startDate}/${endDate}&details=${details}`;
   };
 
   const handleAutoFill = () => {
@@ -232,12 +167,11 @@ export default function PetitionsPage() {
   };
 
   const handleSubmit = () => {
-    // Save user data for future auto-fill
     const newUserData = { ...savedUserData, ...formData };
     localStorage.setItem('userFormData', JSON.stringify(newUserData));
     setSavedUserData(newUserData);
 
-    alert('Petition submitted! Time slot booked.');
+    alert('Application submitted! Time slot booked.');
     setSelectedPetition(null);
     setSelectedSlot(null);
     setFormData({});
@@ -252,25 +186,31 @@ export default function PetitionsPage() {
     return acc;
   }, {} as Record<string, TimeSlot[]>);
 
+  const filteredPetitions = MOCK_PETITIONS;
+
   return (
     <div className="dashboard-container" style={{ paddingTop: 0 }}>
       <header className="dashboard-header" style={{ marginTop: 0 }}>
         <div className="header-content">
           <div className="header-top">
-            <h1 className="dashboard-title">Petitions</h1>
+            <h1 className="dashboard-title">Opportunities</h1>
             <div className="header-stats">
               <div className="stat-pill stat-total">
                 <span className="stat-value">{MOCK_PETITIONS.length}</span>
                 <span className="stat-label">active</span>
               </div>
-              <div className="stat-pill stat-open">
-                <span className="stat-value">{bookmarkedPetitions.length}</span>
-                <span className="stat-label">bookmarked</span>
-              </div>
             </div>
           </div>
           <p className="dashboard-subtitle">
-            Auditions, crew calls, and casting opportunities
+            Auditions, crew calls, and open positions
+          </p>
+          <p style={{
+            fontSize: '13px',
+            color: 'var(--text-tertiary)',
+            marginTop: 'var(--space-xs)',
+            lineHeight: 1.5,
+          }}>
+            Petitioning is an application process — you may be interviewed, and not all applicants are accepted.
           </p>
         </div>
       </header>
@@ -281,9 +221,8 @@ export default function PetitionsPage() {
         flexDirection: 'column',
         gap: 'var(--space-md)',
       }}>
-        {MOCK_PETITIONS.map((petition) => {
+        {filteredPetitions.map((petition) => {
           const availableSlots = petition.timeSlots.filter(s => s.available).length;
-          const isBookmarked = bookmarkedPetitions.includes(petition.id);
 
           return (
             <div
@@ -344,6 +283,33 @@ export default function PetitionsPage() {
                     {petition.description}
                   </p>
 
+                  {/* Roles */}
+                  {petition.roles && petition.roles.length > 0 && (
+                    <div style={{
+                      display: 'flex',
+                      gap: 'var(--space-xs)',
+                      flexWrap: 'wrap',
+                      marginBottom: 'var(--space-md)',
+                    }}>
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)', alignSelf: 'center' }}>Roles:</span>
+                      {petition.roles.map(role => (
+                        <span
+                          key={role}
+                          style={{
+                            fontSize: '11px',
+                            padding: '2px 8px',
+                            borderRadius: '100px',
+                            background: 'var(--bg-elevated)',
+                            color: 'var(--text-secondary)',
+                            border: '1px solid var(--border-subtle)',
+                          }}
+                        >
+                          {role}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
                   <div style={{
                     display: 'flex',
                     gap: 'var(--space-lg)',
@@ -369,10 +335,27 @@ export default function PetitionsPage() {
                     </div>
                     <div>
                       <span style={{ color: 'var(--text-muted)' }}>Contact: </span>
+                      <span>{petition.contactName} </span>
                       <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}>
-                        {petition.contactEmail}
+                        ({petition.contactEmail})
                       </span>
                     </div>
+                    {petition.scriptLink && (
+                      <div>
+                        <a
+                          href={petition.scriptLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            color: 'var(--accent-crew)',
+                            textDecoration: 'none',
+                            fontWeight: 500,
+                          }}
+                        >
+                          View Script / Materials →
+                        </a>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -381,22 +364,38 @@ export default function PetitionsPage() {
                   gap: 'var(--space-sm)',
                   flexShrink: 0,
                 }}>
-                  <button
-                    onClick={() => handleBookmark(petition.id)}
+                  <a
+                    href={generateGoogleCalendarUrl(petition)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Add deadline to Google Calendar"
                     style={{
                       padding: 'var(--space-sm) var(--space-md)',
-                      background: isBookmarked ? 'var(--accent-grant)' : 'var(--bg-tertiary)',
-                      border: `1px solid ${isBookmarked ? 'var(--accent-grant)' : 'var(--border-default)'}`,
+                      background: 'var(--bg-elevated)',
+                      border: '1px solid var(--border-default)',
                       borderRadius: 'var(--radius-sm)',
-                      color: isBookmarked ? 'var(--bg-primary)' : 'var(--text-secondary)',
-                      cursor: 'pointer',
-                      fontSize: '16px',
-                      transition: 'all 0.2s ease',
+                      color: 'var(--text-secondary)',
+                      fontSize: '12px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 500,
+                      textDecoration: 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      transition: 'all 0.15s ease',
                     }}
-                    title={isBookmarked ? 'Remove bookmark' : 'Bookmark petition'}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'var(--accent-casting)';
+                      e.currentTarget.style.color = 'var(--bg-primary)';
+                      e.currentTarget.style.borderColor = 'var(--accent-casting)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'var(--bg-elevated)';
+                      e.currentTarget.style.color = 'var(--text-secondary)';
+                      e.currentTarget.style.borderColor = 'var(--border-default)';
+                    }}
                   >
-                    {isBookmarked ? '★' : '☆'}
-                  </button>
+                    +Cal
+                  </a>
                   <button
                     onClick={() => {
                       setSelectedPetition(petition);
@@ -415,7 +414,7 @@ export default function PetitionsPage() {
                       transition: 'all 0.2s ease',
                     }}
                   >
-                    Sign Up →
+                    Apply →
                   </button>
                 </div>
               </div>
@@ -424,7 +423,7 @@ export default function PetitionsPage() {
         })}
       </div>
 
-      {/* Signup Modal */}
+      {/* Application Modal */}
       {selectedPetition && (
         <div
           onClick={() => {
@@ -472,13 +471,25 @@ export default function PetitionsPage() {
               justifyContent: 'space-between',
               alignItems: 'center',
             }}>
-              <h2 style={{
-                fontSize: '20px',
-                fontWeight: 700,
-                color: 'var(--text-primary)',
-              }}>
-                {showForm ? 'Complete Your Application' : 'Select a Time Slot'}
-              </h2>
+              <div>
+                <h2 style={{
+                  fontSize: '20px',
+                  fontWeight: 700,
+                  color: 'var(--text-primary)',
+                }}>
+                  {showForm ? 'Complete Your Application' : 'Select a Time Slot'}
+                </h2>
+                <p style={{
+                  fontSize: '12px',
+                  color: 'var(--text-tertiary)',
+                  marginTop: '4px',
+                }}>
+                  {showForm
+                    ? 'Fill out the short form below. More details may be discussed during your slot.'
+                    : `Pick a time for: ${selectedPetition.title}`
+                  }
+                </p>
+              </div>
               <button
                 onClick={() => {
                   setSelectedPetition(null);
@@ -620,7 +631,7 @@ export default function PetitionsPage() {
                         marginBottom: 'var(--space-lg)',
                       }}
                     >
-                      ✨ Auto-fill with saved data
+                      Auto-fill with saved info
                     </button>
                   )}
 
@@ -661,7 +672,7 @@ export default function PetitionsPage() {
                           value={formData[question.id] || ''}
                           onChange={(e) => setFormData({ ...formData, [question.id]: e.target.value })}
                           required={question.required}
-                          rows={4}
+                          rows={3}
                           style={{
                             width: '100%',
                             padding: 'var(--space-sm)',

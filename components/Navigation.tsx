@@ -91,107 +91,47 @@ export function Navigation() {
             alignItems: "center",
           }}
         >
-          {/* Opportunities Dropdown */}
-          <div style={{ position: "relative" }}>
-            <button
-              style={navItemStyle(isDropdownActive(["/petitions", "/grants"]))}
-              onClick={() => toggleDropdown("opportunities")}
-              onMouseEnter={(e) => {
-                if (!isDropdownActive(["/petitions", "/grants"])) {
-                  e.currentTarget.style.background = "var(--bg-tertiary)";
-                  e.currentTarget.style.color = "var(--text-secondary)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isDropdownActive(["/petitions", "/grants"])) {
-                  e.currentTarget.style.background = "transparent";
-                  e.currentTarget.style.color = "var(--text-tertiary)";
-                }
-              }}
-            >
-              <Sparkles size={14} />
-              Opportunities
-              <ChevronDown size={14} />
-            </button>
-            {openDropdown === "opportunities" && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: "calc(100% + 4px)",
-                  left: 0,
-                  background: "var(--bg-elevated)",
-                  border: "1px solid var(--border-emphasis)",
-                  borderRadius: "var(--radius-sm)",
-                  boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-                  minWidth: "160px",
-                  zIndex: 100,
-                }}
-              >
-                <Link
-                  href="/petitions"
-                  onClick={closeDropdown}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    padding: "var(--space-sm) var(--space-md)",
-                    fontSize: "13px",
-                    color: isActive("/petitions")
-                      ? "var(--text-primary)"
-                      : "var(--text-tertiary)",
-                    textDecoration: "none",
-                    background: isActive("/petitions")
-                      ? "var(--bg-tertiary)"
-                      : "transparent",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "var(--bg-tertiary)";
-                    e.currentTarget.style.color = "var(--text-secondary)";
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isActive("/petitions")) {
-                      e.currentTarget.style.background = "transparent";
-                      e.currentTarget.style.color = "var(--text-tertiary)";
-                    }
-                  }}
-                >
-                  <FileText size={14} />
-                  Petitions
-                </Link>
-                <Link
-                  href="/grants"
-                  onClick={closeDropdown}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    padding: "var(--space-sm) var(--space-md)",
-                    fontSize: "13px",
-                    color: isActive("/grants")
-                      ? "var(--text-primary)"
-                      : "var(--text-tertiary)",
-                    textDecoration: "none",
-                    background: isActive("/grants")
-                      ? "var(--bg-tertiary)"
-                      : "transparent",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "var(--bg-tertiary)";
-                    e.currentTarget.style.color = "var(--text-secondary)";
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isActive("/grants")) {
-                      e.currentTarget.style.background = "transparent";
-                      e.currentTarget.style.color = "var(--text-tertiary)";
-                    }
-                  }}
-                >
-                  <DollarSign size={14} />
-                  Grants
-                </Link>
-              </div>
-            )}
-          </div>
+          {/* Petitions */}
+          <Link
+            href="/petitions"
+            style={navItemStyle(isActive("/petitions"))}
+            onMouseEnter={(e) => {
+              if (!isActive("/petitions")) {
+                e.currentTarget.style.background = "var(--bg-tertiary)";
+                e.currentTarget.style.color = "var(--text-secondary)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isActive("/petitions")) {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = "var(--text-tertiary)";
+              }
+            }}
+          >
+            <FileText size={14} />
+            Petitions
+          </Link>
+
+          {/* Grants - primary nav item per user feedback */}
+          <Link
+            href="/grants"
+            style={navItemStyle(isActive("/grants"))}
+            onMouseEnter={(e) => {
+              if (!isActive("/grants")) {
+                e.currentTarget.style.background = "var(--bg-tertiary)";
+                e.currentTarget.style.color = "var(--text-secondary)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isActive("/grants")) {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = "var(--text-tertiary)";
+              }
+            }}
+          >
+            <DollarSign size={14} />
+            Grants
+          </Link>
 
           {/* Information Dropdown */}
           <div style={{ position: "relative" }}>
@@ -282,7 +222,7 @@ export function Navigation() {
             }}
           >
             <CalendarIcon size={14} />
-            Calendar
+            Timeline
           </Link>
         </div>
 
