@@ -24,6 +24,7 @@
     --accent-crew: #7d9cb5;       /* Steel blue */
     --accent-casting: #c27d9e;    /* Rose */
     --accent-resource: #7daf8f;   /* Sage green */
+    --accent-event: #b8a9d4;      /* Soft purple */
 
     /* Status colors */
     --status-open: #8fbc8f;       /* Soft green */
@@ -32,6 +33,7 @@
     --status-unclear: #7d7d7d;    /* Gray */
     --status-casting: #c27d9e;    /* Rose */
     --status-resource: #7daf8f;   /* Sage */
+    --status-event: #b8a9d4;      /* Purple */
 
     /* Semantic colors */
     --border-subtle: #2d333d;
@@ -518,6 +520,16 @@
   background: rgba(125, 175, 143, 0.2);
   color: var(--status-resource);
   border: 1px solid var(--status-resource);
+}
+
+.status-badge.status-event {
+  background: rgba(184, 169, 212, 0.2);
+  color: var(--status-event);
+  border: 1px solid var(--status-event);
+}
+
+.status-dot.status-event {
+  background: var(--status-event);
 }
 
 .expand-icon {
@@ -1254,6 +1266,227 @@
   font-weight: 700;
   color: var(--text-primary);
   font-family: var(--font-display);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   VIEW TOGGLE - Switch between Category and Inbox views
+   ═══════════════════════════════════════════════════════════ */
+
+.view-toggle-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-lg);
+  padding: var(--space-sm) 0;
+}
+
+.view-toggle {
+  display: inline-flex;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.view-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  transition: all 0.25s ease;
+  position: relative;
+}
+
+.view-toggle-btn:hover {
+  color: var(--text-secondary);
+}
+
+.view-toggle-active {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+
+.view-toggle-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.view-toggle-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   INBOX VIEW - Email-style chronological list
+   ═══════════════════════════════════════════════════════════ */
+
+.inbox-filter-tabs {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.inbox-filter-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.inbox-filter-tab:hover {
+  border-color: var(--filter-color);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.inbox-filter-tab-active {
+  border-color: var(--filter-color);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  box-shadow: 0 0 0 1px var(--filter-color);
+}
+
+.inbox-filter-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--bg-primary);
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.inbox-filter-label {
+  font-weight: 500;
+}
+
+.inbox-filter-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  min-width: 16px;
+  text-align: center;
+}
+
+/* Inbox List Items */
+.inbox-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  background: transparent;
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 10px var(--space-md);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.inbox-item:last-child {
+  border-bottom: none;
+}
+
+.inbox-item:hover {
+  background: var(--bg-tertiary);
+}
+
+.inbox-item-selected {
+  background: var(--bg-elevated);
+  box-shadow: inset 3px 0 0 var(--accent-crew);
+}
+
+.inbox-item-selected:hover {
+  background: var(--bg-elevated);
+}
+
+.inbox-category-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--bg-primary);
+  flex-shrink: 0;
+}
+
+.inbox-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.inbox-item-subject {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inbox-item-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 11px;
+}
+
+.inbox-item-from {
+  color: var(--text-tertiary);
+  font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
+}
+
+.inbox-item-date {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.inbox-media-icon {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.6;
 }
 
 } /* End @layer components */

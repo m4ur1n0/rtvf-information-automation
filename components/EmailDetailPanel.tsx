@@ -5,7 +5,7 @@ import { formatSentDate } from "@/lib/format";
 
 interface EmailDetailPanelProps {
   email: ParsedEmailRow | null;
-  type: "grant" | "crew" | "casting" | "resource";
+  type: "grant" | "crew" | "casting" | "resource" | "event";
 }
 
 export function EmailDetailPanel({ email, type }: EmailDetailPanelProps) {
@@ -48,6 +48,14 @@ export function EmailDetailPanel({ email, type }: EmailDetailPanelProps) {
         label: isExtras ? "Extras" : "Roles",
         color: "status-casting",
       };
+    }
+
+    if (type === "event") {
+      if (email.tags.includes("SCREENING")) return { label: "Screening", color: "status-event" };
+      if (email.tags.includes("WORKSHOP")) return { label: "Workshop", color: "status-event" };
+      if (email.tags.includes("PANEL")) return { label: "Panel", color: "status-event" };
+      if (email.tags.includes("MEETING")) return { label: "Meeting", color: "status-event" };
+      return { label: "Event", color: "status-event" };
     }
 
     if (type === "resource") {

@@ -10,9 +10,10 @@ interface TabbedDashboardProps {
   crewCalls: { emails: ParsedEmailRow[]; error?: string };
   resources: { emails: ParsedEmailRow[]; error?: string };
   castingCalls: { emails: ParsedEmailRow[]; error?: string };
+  events: { emails: ParsedEmailRow[]; error?: string };
 }
 
-type Topic = "grants" | "crewCalls" | "castingCalls" | "resources";
+type Topic = "grants" | "crewCalls" | "castingCalls" | "resources" | "events";
 
 interface TopicConfig {
   key: Topic;
@@ -21,20 +22,18 @@ interface TopicConfig {
   accentColor: string;
 }
 
-interface EmailDetailPanelParams {
-  email: ParsedEmailRow | null;
-  type: "grant" | "crew" | "casting" | "resource";
-}
+type DetailType = "grant" | "crew" | "casting" | "resource" | "event";
 
 const topics: TopicConfig[] = [
-  { key: "grants", title: "Grants", icon: "$", accentColor: "var(--accent-grant)" },
   { key: "crewCalls", title: "Crew Calls", icon: "◎", accentColor: "var(--accent-crew)" },
+  { key: "grants", title: "Grants", icon: "$", accentColor: "var(--accent-grant)" },
   { key: "castingCalls", title: "Casting Calls", icon: "★", accentColor: "var(--accent-casting)" },
-  { key: "resources", title: "Resources", icon: "⚙", accentColor: "var(--accent-resource)" },
+  { key: "events", title: "Events", icon: "◈", accentColor: "var(--accent-event)" },
+  { key: "resources", title: "Equipment & Resources", icon: "⚙", accentColor: "var(--accent-resource)" },
 ];
 
-export function TabbedDashboard({ grants, crewCalls, resources, castingCalls }: TabbedDashboardProps) {
-  const [selectedTopic, setSelectedTopic] = useState<Topic>("grants");
+export function TabbedDashboard({ grants, crewCalls, resources, castingCalls, events }: TabbedDashboardProps) {
+  const [selectedTopic, setSelectedTopic] = useState<Topic>("crewCalls");
   const [selectedEmail, setSelectedEmail] = useState<ParsedEmailRow | null>(null);
 
   const topicData = {
@@ -42,24 +41,24 @@ export function TabbedDashboard({ grants, crewCalls, resources, castingCalls }: 
     crewCalls,
     resources,
     castingCalls,
+    events,
   };
 
   const currentData = topicData[selectedTopic];
   const currentConfig = topics.find(t => t.key === selectedTopic)!;
 
-  // Determine type for CompactRow
-  const getType = (topic: Topic): "grant" | "crew" | "casting" | "resource" => {
+  const getType = (topic: Topic): DetailType => {
     switch (topic) {
       case "grants": return "grant";
       case "crewCalls": return "crew";
       case "castingCalls": return "casting";
       case "resources": return "resource";
+      case "events": return "event";
     }
   };
 
   const currentType = getType(selectedTopic);
 
-  // Calculate status count for the selected topic
   const getStatusCount = () => {
     if (selectedTopic === "grants") {
       return currentData.emails.filter(e => e.tags.includes("GRANT_OPEN")).length;
@@ -71,8 +70,7 @@ export function TabbedDashboard({ grants, crewCalls, resources, castingCalls }: 
 
   const statusCount = getStatusCount();
 
-  // Determine status with color coding
-  const getStatus = (type: EmailDetailPanelParams["type"], email: ParsedEmailRow) => {
+  const getStatus = (type: DetailType, email: ParsedEmailRow) => {
     if (type === "grant") {
       if (email.tags.includes("GRANT_CLOSED")) {
         return { label: "Closed", color: "status-closed" };
@@ -103,6 +101,14 @@ export function TabbedDashboard({ grants, crewCalls, resources, castingCalls }: 
       };
     }
 
+    if (type === "event") {
+      if (email.tags.includes("SCREENING")) return { label: "Screening", color: "status-event" };
+      if (email.tags.includes("WORKSHOP")) return { label: "Workshop", color: "status-event" };
+      if (email.tags.includes("PANEL")) return { label: "Panel", color: "status-event" };
+      if (email.tags.includes("MEETING")) return { label: "Meeting", color: "status-event" };
+      return { label: "Event", color: "status-event" };
+    }
+
     if (type === "resource") {
       if (email.tags.includes("PROPS_COSTUMES")) {
         return { label: "Props/Costumes", color: "status-resource" };
@@ -117,8 +123,6 @@ export function TabbedDashboard({ grants, crewCalls, resources, castingCalls }: 
 
     return { label: "Active", color: "status-open" };
   };
-
-
 
   return (
     <div className="tabbed-dashboard">
@@ -175,64 +179,40 @@ export function TabbedDashboard({ grants, crewCalls, resources, castingCalls }: 
           <div className="list-panel-content">
             {currentData.error ? (
               <div className="section-error">
-                <div className="error-icon">⚠</div>
+                <div className="error-icon">&#9888;</div>
                 <div className="error-message">Failed to load {currentConfig.title.toLowerCase()}</div>
               </div>
             ) : currentData.emails.length === 0 ? (
               <div className="section-empty">
-                <div className="empty-icon">∅</div>
+                <div className="empty-icon">&#8709;</div>
                 <div className="empty-message">No {currentConfig.title.toLowerCase()} found</div>
               </div>
             ) : (
               <div className="row-list">
                 {currentData.emails.map((email) => {
+                    const status = getStatus(currentType, email);
 
-                    if (currentConfig.title === "Grants") {
-
-                        const status = getStatus("grant", email);
-                    
-                        return (
-                            <div
-                                key={email.id}
-                                className={`list-item-wrapper flex justify-between items-center ${selectedEmail?.id === email.id ? "list-item-selected" : ""}`}
-                                onClick={() => setSelectedEmail(email)}
-                            >
-                                <div className="list-item-header">
-                                    <div className="list-item-main">
-                                        <div className="list-item-subject">{email.subject || "(No subject)"}</div>
-                                        <div className="list-item-meta">
-                                            <span className="list-item-date">{formatSentDate(email.sent_at)}</span>
-                                            {email.is_bump === 1 && <span className="bump-badge">BUMP</span>}
-                                        </div>
-                                    </div>
-                                </div>
-
-
-                                <span className={`status-badge ${(status.label === "Open" && "status-open")} ${(status.label === "Closed" && "status-closed")} ${(status.label === "Upcoming" && "status-upcoming")} ${(status.label === "Unclear" && "status-unclear")}`}>
-                                    {status.label}
-                                </span>
-                            </div>
-                        )
-                    } else {
-                        return (
-                            <div
-                                key={email.id}
-                                className={`list-item-wrapper ${selectedEmail?.id === email.id ? "list-item-selected" : ""}`}
-                                onClick={() => setSelectedEmail(email)}
-                            >
-                                
-                                <div className="list-item-header">
-                                    <div className="list-item-main">
-                                        <div className="list-item-subject">{email.subject || "(No subject)"}</div>
-                                        <div className="list-item-meta">
-                                            <span className="list-item-date">{formatSentDate(email.sent_at)}</span>
-                                            {email.is_bump === 1 && <span className="bump-badge">BUMP</span>}
-                                        </div>
+                    return (
+                        <div
+                            key={email.id}
+                            className={`list-item-wrapper flex justify-between items-center ${selectedEmail?.id === email.id ? "list-item-selected" : ""}`}
+                            onClick={() => setSelectedEmail(email)}
+                        >
+                            <div className="list-item-header">
+                                <div className="list-item-main">
+                                    <div className="list-item-subject">{email.subject || "(No subject)"}</div>
+                                    <div className="list-item-meta">
+                                        <span className="list-item-date">{formatSentDate(email.sent_at)}</span>
+                                        {email.is_bump === 1 && <span className="bump-badge">BUMP</span>}
                                     </div>
                                 </div>
                             </div>
-                        )
-                    }
+
+                            <span className={`status-badge ${status.color}`}>
+                                {status.label}
+                            </span>
+                        </div>
+                    );
                 })}
               </div>
             )}

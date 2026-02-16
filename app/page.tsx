@@ -36,8 +36,16 @@ async function fetchResourcesData(): Promise<{ emails: ParsedEmailRow[]; error?:
 
 async function fetchCastingCallsData(): Promise<{ emails: ParsedEmailRow[]; error?: string }> {
   try {
-    // Fetch CREW_CALL with CASTING_ROLES tag
     const emails = await fetchEmails({ category: "CREW_CALL", tag: "CASTING_ROLES", limit: 25 });
+    return { emails };
+  } catch (error) {
+    return { emails: [], error: error instanceof Error ? error.message : "Unknown error" };
+  }
+}
+
+async function fetchEventsData(): Promise<{ emails: ParsedEmailRow[]; error?: string }> {
+  try {
+    const emails = await fetchEmails({ category: "EVENT", limit: 25 });
     return { emails };
   } catch (error) {
     return { emails: [], error: error instanceof Error ? error.message : "Unknown error" };
@@ -46,15 +54,16 @@ async function fetchCastingCallsData(): Promise<{ emails: ParsedEmailRow[]; erro
 
 export default async function Home() {
   // Fetch all sections in parallel
-  const [grants, crewCalls, resources, castingCalls] = await Promise.all([
+  const [grants, crewCalls, resources, castingCalls, events] = await Promise.all([
     fetchGrantsData(),
     fetchCrewCallsData(),
     fetchResourcesData(),
     fetchCastingCallsData(),
+    fetchEventsData(),
   ]);
 
   // Calculate stats
-  const totalItems = grants.emails.length + crewCalls.emails.length + resources.emails.length + castingCalls.emails.length;
+  const totalItems = grants.emails.length + crewCalls.emails.length + resources.emails.length + castingCalls.emails.length + events.emails.length;
   const openGrants = grants.emails.filter(e => e.tags.includes("GRANT_OPEN")).length;
 
   return (
@@ -87,6 +96,7 @@ export default async function Home() {
         crewCalls={crewCalls}
         resources={resources}
         castingCalls={castingCalls}
+        events={events}
       />
     </div>
   );
