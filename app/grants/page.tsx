@@ -387,10 +387,10 @@ export default function GrantsPage() {
           </div>
         </div>
 
-        <div style={{
+        <div className="grant-card-meta" style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 'var(--space-lg)',
+          gap: 'var(--space-md)',
           flexShrink: 0,
           fontSize: '13px',
         }}>
@@ -401,12 +401,10 @@ export default function GrantsPage() {
           }}>
             {grant.amount}
           </span>
-          <span style={{
+          <span className="grant-card-deadline" style={{
             fontFamily: 'var(--font-mono)',
             color: 'var(--text-muted)',
             fontSize: '12px',
-            minWidth: '110px',
-            textAlign: 'right',
           }}>
             {grant.deadline}
           </span>
@@ -425,14 +423,11 @@ export default function GrantsPage() {
 
   // Detail panel — shown in sidebar when a grant is selected
   const DetailPanel = ({ grant }: { grant: Grant }) => (
-    <div style={{
+    <div className="grants-detail-panel" style={{
       background: 'var(--bg-secondary)',
       border: '1px solid var(--border-emphasis)',
       borderRadius: 'var(--radius-md)',
       overflow: 'hidden',
-      position: 'sticky',
-      top: '72px',
-      maxHeight: 'calc(100vh - 88px)',
       overflowY: 'auto',
     }}>
       {/* Header */}
@@ -704,12 +699,10 @@ export default function GrantsPage() {
 
   // Resources sidebar — shown when no grant is selected
   const ResourcesSidebar = () => (
-    <aside style={{
+    <aside className="grants-detail-panel" style={{
       display: 'flex',
       flexDirection: 'column',
       gap: 'var(--space-md)',
-      position: 'sticky',
-      top: '72px',
     }}>
       {/* Faculty Contacts */}
       <div style={{
@@ -930,9 +923,8 @@ export default function GrantsPage() {
       </div>
 
       {/* Main: grant list + sidebar/detail panel */}
-      <div style={{
+      <div className="grants-layout" style={{
         display: 'grid',
-        gridTemplateColumns: selectedGrant ? '1fr 380px' : '1fr 280px',
         gap: 'var(--space-lg)',
         alignItems: 'start',
         transition: 'grid-template-columns 0.2s ease',
@@ -963,7 +955,7 @@ export default function GrantsPage() {
                   }}>
                     {config.label}
                   </h2>
-                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                  <span className="section-description-inline" style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                     {config.description}
                   </span>
                 </div>
@@ -1003,13 +995,30 @@ export default function GrantsPage() {
           )}
         </div>
 
-        {/* Right column: detail panel or resources */}
-        {selectedGrant ? (
-          <DetailPanel grant={selectedGrant} />
-        ) : (
-          <ResourcesSidebar />
-        )}
+        {/* Right column: detail panel or resources (desktop only) */}
+        <div className="grants-sidebar-desktop">
+          {selectedGrant ? (
+            <DetailPanel grant={selectedGrant} />
+          ) : (
+            <ResourcesSidebar />
+          )}
+        </div>
       </div>
+
+      {/* Mobile modal for grant detail */}
+      {selectedGrant && (
+        <div
+          className="grants-modal-overlay"
+          onClick={() => setSelectedGrantId(null)}
+        >
+          <div
+            className="grants-modal-content"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <DetailPanel grant={selectedGrant} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

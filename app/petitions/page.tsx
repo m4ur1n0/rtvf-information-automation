@@ -235,7 +235,7 @@ export default function PetitionsPage() {
                 transition: 'all 0.2s ease',
               }}
             >
-              <div style={{
+              <div className="petition-card-layout" style={{
                 padding: 'var(--space-lg)',
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -359,7 +359,7 @@ export default function PetitionsPage() {
                   </div>
                 </div>
 
-                <div style={{
+                <div className="petition-actions" style={{
                   display: 'flex',
                   gap: 'var(--space-sm)',
                   flexShrink: 0,
@@ -426,6 +426,7 @@ export default function PetitionsPage() {
       {/* Application Modal */}
       {selectedPetition && (
         <div
+          className="petition-modal-overlay"
           onClick={() => {
             setSelectedPetition(null);
             setShowForm(false);
@@ -448,6 +449,7 @@ export default function PetitionsPage() {
           }}
         >
           <div
+            className="petition-modal-content"
             onClick={(e) => e.stopPropagation()}
             style={{
               background: 'var(--bg-secondary)',
@@ -541,7 +543,7 @@ export default function PetitionsPage() {
                       </div>
                       <div style={{
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(min(180px, 100%), 1fr))',
                         gap: 'var(--space-sm)',
                       }}>
                         {slots.map((slot) => (

@@ -349,7 +349,7 @@ export default function CalendarPage() {
                         }}
                       >
                         {/* Date */}
-                        <div style={{
+                        <div className="calendar-item-date" style={{
                           flexShrink: 0,
                           width: '52px',
                           textAlign: 'center',

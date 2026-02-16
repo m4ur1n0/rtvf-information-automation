@@ -10,15 +10,12 @@ export function HandbookSidebar({
 }) {
   return (
     <aside
+      className="handbook-sidebar"
       style={{
-        position: "sticky",
-        top: "72px",
-        alignSelf: "start",
         background: "var(--bg-secondary)",
         border: "1px solid var(--border-subtle)",
         borderRadius: "var(--radius-lg)",
         padding: "var(--space-md)",
-        maxHeight: "calc(100vh - 90px)",
         overflowY: "auto",
       }}
     >

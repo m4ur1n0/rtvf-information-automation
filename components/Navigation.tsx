@@ -1,27 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Sparkles,
-  MapPin,
   BookOpen,
-  Clock,
   Calendar as CalendarIcon,
-  Users,
   ChevronDown,
   FileText,
   DollarSign,
   Sun,
   Moon,
+  Menu,
+  X,
 } from "lucide-react";
 import { useTheme } from "./ThemeProvider";
 
 export function Navigation() {
   const pathname = usePathname();
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+    setOpenDropdown(null);
+  }, [pathname]);
 
   const isActive = (path: string) => pathname === path;
   const isDropdownActive = (paths: string[]) => paths.includes(pathname);
@@ -38,16 +43,33 @@ export function Navigation() {
     padding: "var(--space-sm) var(--space-md)",
     borderRadius: "var(--radius-sm)",
     fontSize: "13px",
-    fontWeight: 500,
-    textDecoration: "none",
+    fontWeight: 500 as const,
+    textDecoration: "none" as const,
     color: active ? "var(--text-primary)" : "var(--text-tertiary)",
     background: active ? "var(--bg-elevated)" : "transparent",
     border: `1px solid ${active ? "var(--border-emphasis)" : "transparent"}`,
     transition: "all 0.2s ease",
-    display: "flex",
-    alignItems: "center",
+    display: "flex" as const,
+    alignItems: "center" as const,
     gap: "6px",
-    cursor: "pointer",
+    cursor: "pointer" as const,
+  });
+
+  const mobileNavItemStyle = (active: boolean) => ({
+    padding: "var(--space-md) var(--space-lg)",
+    fontSize: "15px",
+    fontWeight: 500 as const,
+    textDecoration: "none" as const,
+    color: active ? "var(--text-primary)" : "var(--text-secondary)",
+    background: active ? "var(--bg-elevated)" : "transparent",
+    borderBottom: "1px solid var(--border-subtle)",
+    display: "flex" as const,
+    alignItems: "center" as const,
+    gap: "var(--space-sm)",
+    cursor: "pointer" as const,
+    width: "100%" as const,
+    border: "none" as const,
+    borderRadius: 0,
   });
 
   return (
@@ -65,10 +87,10 @@ export function Navigation() {
         style={{
           maxWidth: "1600px",
           margin: "0 auto",
-          padding: "0 var(--space-xl)",
+          padding: "0 var(--space-lg)",
           display: "flex",
           alignItems: "center",
-          gap: "var(--space-lg)",
+          justifyContent: "space-between",
           height: "56px",
         }}
       >
@@ -81,21 +103,14 @@ export function Navigation() {
             color: "var(--text-primary)",
             textDecoration: "none",
             letterSpacing: "-0.02em",
-            marginRight: "var(--space-md)",
+            flexShrink: 0,
           }}
         >
           ListService
         </Link>
 
-        <div
-          style={{
-            display: "flex",
-            gap: "var(--space-sm)",
-            flex: 1,
-            alignItems: "center",
-          }}
-        >
-          {/* Petitions */}
+        {/* Desktop Nav */}
+        <div className="nav-desktop-links">
           <Link
             href="/petitions"
             style={navItemStyle(isActive("/petitions"))}
@@ -116,7 +131,6 @@ export function Navigation() {
             Petitions
           </Link>
 
-          {/* Grants - primary nav item per user feedback */}
           <Link
             href="/grants"
             style={navItemStyle(isActive("/grants"))}
@@ -137,7 +151,6 @@ export function Navigation() {
             Grants
           </Link>
 
-          {/* Information Dropdown */}
           <div style={{ position: "relative" }}>
             <button
               style={navItemStyle(isDropdownActive(["/production-handbook"]))}
@@ -208,7 +221,6 @@ export function Navigation() {
             )}
           </div>
 
-          {/* Calendar */}
           <Link
             href="/calendar"
             style={navItemStyle(isActive("/calendar"))}
@@ -230,14 +242,9 @@ export function Navigation() {
           </Link>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "var(--space-md)",
-          }}
-        >
-          <div
+        {/* Right side: theme toggle + mobile hamburger */}
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)" }}>
+          <span className="nav-desktop-label"
             style={{
               fontSize: "11px",
               color: "var(--text-muted)",
@@ -247,7 +254,7 @@ export function Navigation() {
             }}
           >
             HCI Prototypes
-          </div>
+          </span>
           <button
             onClick={toggleTheme}
             aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
@@ -255,8 +262,8 @@ export function Navigation() {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              width: "32px",
-              height: "32px",
+              width: "36px",
+              height: "36px",
               borderRadius: "var(--radius-sm)",
               border: "1px solid var(--border-default)",
               background: "var(--bg-tertiary)",
@@ -275,8 +282,57 @@ export function Navigation() {
           >
             {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
           </button>
+
+          {/* Mobile hamburger */}
+          <button
+            className="nav-mobile-hamburger"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Toggle menu"
+            style={{
+              display: "none",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "36px",
+              height: "36px",
+              borderRadius: "var(--radius-sm)",
+              border: "1px solid var(--border-default)",
+              background: "var(--bg-tertiary)",
+              color: "var(--text-secondary)",
+              cursor: "pointer",
+            }}
+          >
+            {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+          </button>
         </div>
       </div>
+
+      {/* Mobile slide-down menu */}
+      {mobileMenuOpen && (
+        <div
+          className="nav-mobile-menu"
+          style={{
+            borderTop: "1px solid var(--border-subtle)",
+            background: "var(--bg-secondary)",
+          }}
+        >
+          <Link href="/petitions" style={mobileNavItemStyle(isActive("/petitions"))}>
+            <FileText size={16} />
+            Petitions
+          </Link>
+          <Link href="/grants" style={mobileNavItemStyle(isActive("/grants"))}>
+            <DollarSign size={16} />
+            Grants
+          </Link>
+          <Link href="/production-handbook" style={mobileNavItemStyle(isActive("/production-handbook") || pathname.startsWith("/production-handbook/"))}>
+            <BookOpen size={16} />
+            Handbook Wiki
+          </Link>
+          <Link href="/calendar" style={mobileNavItemStyle(isActive("/calendar"))}>
+            <CalendarIcon size={16} />
+            Timeline
+          </Link>
+        </div>
+      )}
     </nav>
   );
 }
