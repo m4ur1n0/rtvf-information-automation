@@ -6,9 +6,9 @@ import { usePathname } from "next/navigation";
 import {
   BookOpen,
   Calendar as CalendarIcon,
-  ChevronDown,
   FileText,
   DollarSign,
+  Inbox,
   Sun,
   Moon,
   Menu,
@@ -18,26 +18,15 @@ import { useTheme } from "./ThemeProvider";
 
 export function Navigation() {
   const pathname = usePathname();
-  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
 
   // Close mobile menu on route change
   useEffect(() => {
     setMobileMenuOpen(false);
-    setOpenDropdown(null);
   }, [pathname]);
 
   const isActive = (path: string) => pathname === path;
-  const isDropdownActive = (paths: string[]) => paths.includes(pathname);
-
-  const toggleDropdown = (name: string) => {
-    setOpenDropdown(openDropdown === name ? null : name);
-  };
-
-  const closeDropdown = () => {
-    setOpenDropdown(null);
-  };
 
   const navItemStyle = (active: boolean) => ({
     padding: "var(--space-sm) var(--space-md)",
@@ -112,6 +101,26 @@ export function Navigation() {
         {/* Desktop Nav */}
         <div className="nav-desktop-links">
           <Link
+            href="/"
+            style={navItemStyle(isActive("/"))}
+            onMouseEnter={(e) => {
+              if (!isActive("/")) {
+                e.currentTarget.style.background = "var(--bg-tertiary)";
+                e.currentTarget.style.color = "var(--text-secondary)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isActive("/")) {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = "var(--text-tertiary)";
+              }
+            }}
+          >
+            <Inbox size={14} />
+            Inbox
+          </Link>
+
+          <Link
             href="/petitions"
             style={navItemStyle(isActive("/petitions"))}
             onMouseEnter={(e) => {
@@ -151,75 +160,25 @@ export function Navigation() {
             Grants
           </Link>
 
-          <div style={{ position: "relative" }}>
-            <button
-              style={navItemStyle(isDropdownActive(["/production-handbook"]))}
-              onClick={() => toggleDropdown("information")}
-              onMouseEnter={(e) => {
-                if (!isDropdownActive(["/production-handbook"])) {
-                  e.currentTarget.style.background = "var(--bg-tertiary)";
-                  e.currentTarget.style.color = "var(--text-secondary)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isDropdownActive(["/production-handbook"])) {
-                  e.currentTarget.style.background = "transparent";
-                  e.currentTarget.style.color = "var(--text-tertiary)";
-                }
-              }}
-            >
-              <BookOpen size={14} />
-              Information
-              <ChevronDown size={14} />
-            </button>
-            {openDropdown === "information" && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: "calc(100% + 4px)",
-                  left: 0,
-                  background: "var(--bg-elevated)",
-                  border: "1px solid var(--border-emphasis)",
-                  borderRadius: "var(--radius-sm)",
-                  boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-                  minWidth: "160px",
-                  zIndex: 100,
-                }}
-              >
-                <Link
-                  href="/production-handbook"
-                  onClick={closeDropdown}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    padding: "var(--space-sm) var(--space-md)",
-                    fontSize: "13px",
-                    color: isActive("/production-handbook")
-                      ? "var(--text-primary)"
-                      : "var(--text-tertiary)",
-                    textDecoration: "none",
-                    background: isActive("/production-handbook")
-                      ? "var(--bg-tertiary)"
-                      : "transparent",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "var(--bg-tertiary)";
-                    e.currentTarget.style.color = "var(--text-secondary)";
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isActive("/production-handbook")) {
-                      e.currentTarget.style.background = "transparent";
-                      e.currentTarget.style.color = "var(--text-tertiary)";
-                    }
-                  }}
-                >
-                  <BookOpen size={14} />
-                  Handbook Wiki
-                </Link>
-              </div>
-            )}
-          </div>
+          <Link
+            href="/production-handbook"
+            style={navItemStyle(isActive("/production-handbook"))}
+            onMouseEnter={(e) => {
+              if (!isActive("/production-handbook")) {
+                e.currentTarget.style.background = "var(--bg-tertiary)";
+                e.currentTarget.style.color = "var(--text-secondary)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isActive("/production-handbook")) {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = "var(--text-tertiary)";
+              }
+            }}
+          >
+            <BookOpen size={14} />
+            Handbook Wiki
+          </Link>
 
           <Link
             href="/calendar"
@@ -315,6 +274,10 @@ export function Navigation() {
             background: "var(--bg-secondary)",
           }}
         >
+          <Link href="/" style={mobileNavItemStyle(isActive("/"))}>
+            <Inbox size={16} />
+            Inbox
+          </Link>
           <Link href="/petitions" style={mobileNavItemStyle(isActive("/petitions"))}>
             <FileText size={16} />
             Petitions

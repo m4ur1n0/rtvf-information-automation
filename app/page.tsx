@@ -71,7 +71,7 @@ export default async function Home() {
       <header className="dashboard-header" style={{ marginTop: 0 }}>
         <div className="header-content">
           <div className="header-top">
-            <h1 className="dashboard-title">RTVF Opportunities</h1>
+            <h1 className="dashboard-title">Inbox</h1>
             <div className="header-stats">
               <div className="stat-pill stat-total">
                 <span className="stat-value">{totalItems}</span>
