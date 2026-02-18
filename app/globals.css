@@ -1144,6 +1144,100 @@
   text-align: center;
 }
 
+/* ── Body toggle (HTML / Text) ───────────────────────────── */
+
+.detail-section-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-sm);
+}
+
+/* override default margin since we wrap it */
+.detail-section-label-row .detail-section-label {
+  margin-bottom: 0;
+}
+
+.body-toggle {
+  display: flex;
+  gap: 2px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+}
+
+.body-toggle-btn {
+  padding: 2px 8px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  border: none;
+  border-radius: calc(var(--radius-sm) - 2px);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.body-toggle-btn.active {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* ── Iframe body rendering ───────────────────────────────── */
+
+.detail-body-iframe-wrapper {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: #fff;
+}
+
+.detail-body-iframe {
+  display: block;
+  width: 100%;
+  min-height: 280px;
+  border: none;
+  background: #fff;
+  /* height is set dynamically by content via srcdoc */
+}
+
+/* ── LLM-extracted metadata grid ────────────────────────── */
+
+.detail-meta-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.detail-meta-row {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: var(--space-sm);
+  align-items: baseline;
+}
+
+.detail-meta-row-full {
+  grid-template-columns: 88px 1fr;
+  align-items: flex-start;
+}
+
+.detail-meta-key {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.detail-meta-val {
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
 /* ═══════════════════════════════════════════════════════════
    RESPONSIVE ADJUSTMENTS
    ═══════════════════════════════════════════════════════════ */

@@ -1,0 +1,700 @@
+{
+  "ran_at": "2026-02-18T21:03:23.294Z",
+  "model": "nvidia/nemotron-3-nano-30b-a3b",
+  "schema": "guided_json",
+  "summary": {
+    "total": 12,
+    "pass": 11,
+    "fail": 1,
+    "error": 0,
+    "pass_rate": "92%"
+  },
+  "latency": {
+    "avg_ms": 1608,
+    "max_ms": 2350
+  },
+  "by_category": {
+    "RESOURCE": {
+      "pass": 1,
+      "fail": 0,
+      "error": 0
+    },
+    "CREW_CALL": {
+      "pass": 7,
+      "fail": 0,
+      "error": 0
+    },
+    "DO_NOT_CARE": {
+      "pass": 1,
+      "fail": 0,
+      "error": 0
+    },
+    "ADMIN": {
+      "pass": 1,
+      "fail": 0,
+      "error": 0
+    },
+    "EVENT": {
+      "pass": 1,
+      "fail": 0,
+      "error": 0
+    },
+    "OTHER": {
+      "pass": 0,
+      "fail": 1,
+      "error": 0
+    }
+  },
+  "cases": [
+    {
+      "caseIndex": 1,
+      "csvRow": 1,
+      "note": "Sourcing lamps/chair bump for 'If The Hand Fits'",
+      "from": "Asiana Spaw <asianaspaw2028@U.NORTHWESTERN.EDU>",
+      "subject": "Re: SOURCING PROD/COSTUMES FOR \"If The Hand Fits\"",
+      "bodyTextSent": "BUMP!!!! Now seeking *lamps* and a *lounge chair *for this weekend! Please<br>email separately asianaspaw2028@u.northwestern.edu.<br><br>On Mon, Jan 26, 2026 at 1:51 PM Asiana Spaw &lt;<br>asianaspaw2028@u.northwestern.edu&gt; wrote:<br><br>&gt; Quick bump on our sourcing form! Please let us know if you have anything<br>&gt; we can borrow (urgently seeking a coffee pot and large framed mirror for<br>&gt; this weekend)!<br>&gt;<br>&gt; On Wed, Jan 21, 2026 at 1:35 PM Asiana Spaw &lt;<br>&gt; asianaspaw2028@u.northwestern.edu&gt; wrote:<br>&gt;<br>&gt;&gt; SOURCING FORM FOR<br>&gt;&gt;<br>&gt;&g",
+      "expected": {
+        "category": "RESOURCE",
+        "tags": [
+          "BUMP"
+        ]
+      },
+      "status": "pass",
+      "catMatch": true,
+      "missingTags": [],
+      "elapsedMs": 1388,
+      "llm": {
+        "category": "RESOURCE",
+        "tags": [
+          "BUMP",
+          "EQUIPMENT",
+          "PROPS_COSTUMES"
+        ],
+        "confidence": 0.95,
+        "is_bump": true,
+        "reasoning": "The email is a bump requesting lamps and a lounge chair, which are equipment and props, fitting the RESOURCE category.",
+        "film_title": "If The Hand Fits",
+        "logline": null,
+        "production_type": "Senior Directing Film",
+        "roles_mentioned": null,
+        "shoot_dates_text": null,
+        "petition_location": null,
+        "pay": null,
+        "grant_amount": null,
+        "grant_status": null,
+        "deadline_text": null,
+        "deadline_iso": null,
+        "application_url": "asianaspaw2028@u.northwestern.edu",
+        "eligibility_text": null,
+        "grant_scope": null,
+        "event_date_text": null,
+        "event_location": null,
+        "rsvp_url": null,
+        "_usage": {
+          "prompt_tokens": 1754,
+          "total_tokens": 2000,
+          "completion_tokens": 246,
+          "prompt_tokens_details": null
+        }
+      }
+    },
+    {
+      "caseIndex": 2,
+      "csvRow": 2,
+      "note": "Crew heads bump for WingDad sitcom pilot",
+      "from": "Ani Kabillio <anikabillio2026@U.NORTHWESTERN.EDU>",
+      "subject": "Re: CREW HEADS CALL FOR WINGDAD",
+      "bodyTextSent": "BUMPING THIS!!! PETITIONS ARE ON ZOOM SO YOU DON’T HAVE TO TREK OUT INTO<br>THE COLD. WE FILM IN SPRING 😍🌹🫶<br><br>On Mon, Jan 26, 2026 at 5:40 PM Kyra Lesmerises &lt;<br>kyralesmerises2026@u.northwestern.edu&gt; wrote:<br><br>&gt; *Seeking Crew heads for “WingDad”*<br>&gt;<br>&gt; An RTVF Sitcom production grant pilot<br>&gt;<br>&gt; Written by *Kyra Lesmerises*<br>&gt;<br>&gt; Directed by *Ani Kabillio*<br>&gt;<br>&gt; Produced by *Jaimie Walsh and Peyton Nelesen*<br>&gt;<br>&gt;<br>&gt; [image: WingDad.png]<br>&gt;<br>&gt;<br>&gt; *Logline*: Recent college grad and perpetually single Tri",
+      "expected": {
+        "category": "CREW_CALL",
+        "tags": [
+          "BUMP"
+        ]
+      },
+      "status": "pass",
+      "catMatch": true,
+      "missingTags": [],
+      "elapsedMs": 1115,
+      "llm": {
+        "category": "CREW_CALL",
+        "tags": [
+          "BUMP",
+          "CASTING_ROLES",
+          "SHOOT_DATES_PRESENT",
+          "PAID",
+          "CREW_PROD",
+          "HAS_CONTACT_INFO"
+        ],
+        "confidence": 0.95,
+        "is_bump": true,
+        "reasoning": "The email begins with 'BUMPING THIS!!!' indicating a bump, and seeks crew heads for a sitcom production grant pilot, specifying production roles and including a contact link.",
+        "film_title": "WingDad",
+        "logline": "Recent college grad and perpetually single Trinity is ready to embark on her search for love in the real world, just as [...]",
+        "production_type": "Sitcom Production Grant",
+        "roles_mentioned": null,
+        "shoot_dates_text": "Spring",
+        "petition_location": "Zoom",
+        "pay": "unpaid",
+        "grant_amount": null,
+        "grant_status": null,
+        "deadline_text": null,
+        "deadline_iso": null,
+        "application_url": "Zoom",
+        "eligibility_text": null,
+        "grant_scope": null,
+        "event_date_text": null,
+        "event_location": null,
+        "rsvp_url": null,
+        "_usage": {
+          "prompt_tokens": 1724,
+          "total_tokens": 2016,
+          "completion_tokens": 292,
+          "prompt_tokens_details": null
+        }
+      }
+    },
+    {
+      "caseIndex": 3,
+      "csvRow": 3,
+      "note": "Game night social event bump",
+      "from": "Lee Ekong <ekong@U.NORTHWESTERN.EDU>",
+      "subject": "Re: 1/28 BLACK SCREENS GAME NIGHT",
+      "bodyTextSent": "BUMP !!! come hang out with us tonight 😋<br><br>On Wed, Jan 21, 2026 at 3:01 PM Lee Ekong &lt;ekong@u.northwestern.edu&gt; wrote:<br><br>&gt; *JOIN US FOR A*<br>&gt; *BLACK SCREENS GAME NIGHT!*<br>&gt; *Wednesday, January 28th, 5-7pm @ the Black House*<br>&gt; Wingstop will be provided &amp; we'll be playing a variety of games!!<br>&gt;<br>&gt; [image: bs game night.png]<br>&gt;",
+      "expected": {
+        "category": "DO_NOT_CARE",
+        "tags": []
+      },
+      "status": "pass",
+      "catMatch": true,
+      "missingTags": [],
+      "elapsedMs": 1341,
+      "llm": {
+        "category": "DO_NOT_CARE",
+        "tags": [
+          "BUMP"
+        ],
+        "confidence": 0.95,
+        "is_bump": true,
+        "reasoning": "The email is a social game night announcement with no film production relevance, so it falls under DO_NOT_CARE. It is a bump because it starts with 'BUMP' and references a prior announcement.",
+        "film_title": null,
+        "logline": null,
+        "production_type": null,
+        "roles_mentioned": null,
+        "shoot_dates_text": null,
+        "petition_location": null,
+        "pay": null,
+        "grant_amount": null,
+        "grant_status": null,
+        "deadline_text": null,
+        "deadline_iso": null,
+        "application_url": null,
+        "eligibility_text": null,
+        "grant_scope": null,
+        "event_date_text": "Wednesday, January 28th",
+        "event_location": "the Black House",
+        "rsvp_url": null,
+        "_usage": {
+          "prompt_tokens": 1618,
+          "total_tokens": 1842,
+          "completion_tokens": 224,
+          "prompt_tokens_details": null
+        }
+      }
+    },
+    {
+      "caseIndex": 4,
+      "csvRow": 4,
+      "note": "Petition bump for Opaline crew call",
+      "from": "Angelina Randazzo <angelinarandazzo2027@U.NORTHWESTERN.EDU>",
+      "subject": "Re: CREW CALL FOR OPALINE",
+      "bodyTextSent": "Hi people interested in Opaline! I'm wearing a black hoodie in that hallway<br>area by Shakesmart with the blue half circle chairs. Petition if you dare.<br><br>On Mon, Jan 26, 2026 at 11:00 PM Ella Smith &lt;<br>ellasmith2027@u.northwestern.edu&gt; wrote:<br><br>&gt;<br>&gt;<br>&gt; ---------- Forwarded message ---------<br>&gt; From: Piper Rutman &lt;piperrutman2027@u.northwestern.edu&gt;<br>&gt; Date: Mon, Jan 26, 2026 at 4:19 PM<br>&gt; Subject: Re: CREW CALL FOR OPALINE<br>&gt; To: Ella Smith &lt;ellasmith2027@u.northwestern.edu&gt;<br>&gt;<br>&gt;<br>&gt; Hi Ella,<br>&gt;<br>&gt; I read ",
+      "expected": {
+        "category": "CREW_CALL",
+        "tags": []
+      },
+      "status": "pass",
+      "catMatch": true,
+      "missingTags": [],
+      "elapsedMs": 1462,
+      "llm": {
+        "category": "CREW_CALL",
+        "tags": [
+          "BUMP",
+          "CASTING_ROLES",
+          "SHOOT_DATES_PRESENT",
+          "PAID",
+          "CREW_DP",
+          "CREW_SOUND",
+          "CREW_EDITOR",
+          "CREW_GAFF_GRIP",
+          "CREW_PROD",
+          "HAS_CONTACT_INFO",
+          "REPLY_CHAIN"
+        ],
+        "confidence": 0.95,
+        "is_bump": true,
+        "reasoning": "The email is a bump of a crew call for Opaline, includes specific roles (DP, Sound, Editor, Gaffer, Grip, Producer) and mentions a petition location, so it fits CREW_CALL with multiple role tags and a clear petition instruction.",
+        "film_title": "Opaline",
+        "logline": null,
+        "production_type": "Senior Directing Film",
+        "roles_mentioned": [
+          "DP",
+          "Sound",
+          "Editor",
+          "Gaffer",
+          "Grip",
+          "Producer"
+        ],
+        "shoot_dates_text": null,
+        "petition_location": "Petition if you dare. (Location implied near Shakesmart hallway with blue half circle chairs)",
+        "pay": "unclear",
+        "grant_amount": null,
+        "grant_status": null,
+        "deadline_text": null,
+        "deadline_iso": null,
+        "application_url": null,
+        "eligibility_text": null,
+        "grant_scope": null,
+        "event_date_text": null,
+        "event_location": null,
+        "rsvp_url": null,
+        "_usage": {
+          "prompt_tokens": 1715,
+          "total_tokens": 2082,
+          "completion_tokens": 367,
+          "prompt_tokens_details": null
+        }
+      }
+    },
+    {
+      "caseIndex": 5,
+      "csvRow": 5,
+      "note": "Extras needed for 'Direction of Sunlight'",
+      "from": "Noelle Robinson <noellerobinson2026@U.NORTHWESTERN.EDU>",
+      "subject": "Extras Call - Direction of Sunlight",
+      "bodyTextSent": "Good Morning!<br><br>Direction of Sunlight is looking for extras on Sat. Feb 7th to build our<br>audience for a performance scene. If you are interested and available,<br>please email Noelle or Elisa for more information! We would love to see you<br>all.<br><br>Best,<br>Direction of Sunlight team<br><br>Noelle: noellerobinson2026@u.northwestern.edu<br>Elisa: Elisataylor2026@u.northwestern.edu",
+      "expected": {
+        "category": "CREW_CALL",
+        "tags": [
+          "CASTING_EXTRAS"
+        ]
+      },
+      "status": "pass",
+      "catMatch": true,
+      "missingTags": [],
+      "elapsedMs": 1659,
+      "llm": {
+        "category": "CREW_CALL",
+        "tags": [
+          "CASTING_EXTRAS",
+          "SHOOT_DATES_PRESENT",
+          "PAID",
+          "HAS_CONTACT_INFO"
+        ],
+        "confidence": 0.95,
+        "is_bump": false,
+        "reasoning": "The email explicitly seeks background extras for a specific shoot date (Sat. Feb 7th) and includes contact emails, fitting CREW_CALL with casting extras, shoot dates, and contact info. Confidence is high due to clear casting call language and details.",
+        "film_title": "Direction of Sunlight",
+        "logline": null,
+        "production_type": null,
+        "roles_mentioned": null,
+        "shoot_dates_text": "Sat. Feb 7th",
+        "petition_location": null,
+        "pay": "unpaid",
+        "grant_amount": null,
+        "grant_status": null,
+        "deadline_text": null,
+        "deadline_iso": null,
+        "application_url": null,
+        "eligibility_text": null,
+        "grant_scope": null,
+        "event_date_text": null,
+        "event_location": null,
+        "rsvp_url": null,
+        "_usage": {
+          "prompt_tokens": 1577,
+          "total_tokens": 1849,
+          "completion_tokens": 272,
+          "prompt_tokens_details": null
+        }
+      }
+    },
+    {
+      "caseIndex": 6,
+      "csvRow": 6,
+      "note": "Grief Mug full crew call with shoot dates",
+      "from": "Orville Amankwah <orvilleamankwah2026@U.NORTHWESTERN.EDU>",
+      "subject": "GRIEF MUG CREW CALL",
+      "bodyTextSent": "Grief Mug<br><br>A MultiCulti Studios Film<br><br>Written by Orville Amankwah<br><br>Directed by Orville Amankwah &amp; Marina Shirky<br><br>Produced by You???<br><br>Shooting Spring Weekends 1 (April 3-5) and 3 (April 17-19)<br><br>[image: image.jpeg]<br><br>Logline: A plucky comedy about a heartbroken Teresa who upon discovering<br>that she left her grandmother’s ceremonial mug at her ex’s house, must<br>retrieve it with the help of the five stages of grief. [...]",
+      "expected": {
+        "category": "CREW_CALL",
+        "tags": [
+          "SHOOT_DATES_PRESENT"
+        ]
+      },
+      "status": "pass",
+      "catMatch": true,
+      "missingTags": [],
+      "elapsedMs": 1822,
+      "llm": {
+        "category": "CREW_CALL",
+        "tags": [
+          "CASTING_ROLES",
+          "SHOOT_DATES_PRESENT",
+          "PAID",
+          "CREW_DP",
+          "CREW_SOUND",
+          "CREW_EDITOR",
+          "CREW_GAFF_GRIP",
+          "CREW_PROD",
+          "HAS_CONTACT_INFO",
+          "BUMP"
+        ],
+        "confidence": 0.95,
+        "is_bump": true,
+        "reasoning": "The body explicitly seeks crew (DP, sound, editor, gaffer, grip, producer) and includes specific shoot dates (Spring Weekends 1 and 3), mentions MultiCulti Studios, and opens with 'Grief Mug' indicating a bump. It lacks explicit pay info, so PAID is set to 'unclear' but included as required.",
+        "film_title": "Grief Mug",
+        "logline": "A plucky comedy about a heartbroken Teresa who upon discovering that she left her grandmother’s ceremonial mug at her ex’s house, must retrieve it with the help of the five stages of grief.",
+        "production_type": "MultiCulti Studios Film",
+        "roles_mentioned": [
+          "DP",
+          "Sound Designer",
+          "Editor",
+          "Gaffer",
+          "Grip",
+          "Producer"
+        ],
+        "shoot_dates_text": "Spring Weekends 1 (April 3-5) and 3 (April 17-19)",
+        "petition_location": null,
+        "pay": "unclear",
+        "grant_amount": null,
+        "grant_status": null,
+        "deadline_text": null,
+        "deadline_iso": null,
+        "application_url": null,
+        "eligibility_text": null,
+        "grant_scope": null,
+        "event_date_text": null,
+        "event_location": null,
+        "rsvp_url": null,
+        "_usage": {
+          "prompt_tokens": 1604,
+          "total_tokens": 2027,
+          "completion_tokens": 423,
+          "prompt_tokens_details": null
+        }
+      }
+    },
+    {
+      "caseIndex": 7,
+      "csvRow": 9,
+      "note": "Casting call for Hangtown animated short (voice actors)",
+      "from": "Arden Shane <olivershane2029@U.NORTHWESTERN.EDU>",
+      "subject": "CASTING CALL: HANGTOWN ANIMATED SHORT",
+      "bodyTextSent": "⚖️ Seeking Voice Actors for Hangtown Animated Short 🔥<br><br>[image: image.png]<br><br>A Wildcat Animate Film<br><br>Written by Riley Doyle<br><br>Directed by Patricia Liu<br><br>Casting by Alex Thiel and Arden Shane<br><br>Recording Winter Week 5 (Feb 2nd to 6th)<br><br>Logline:<br><br>Children gather ‘round a campfire to tell the story of how their sleepy,<br>backwards town got the nickname Hangtown back in 1861, through the story of<br>a Chicago detective and the serial arsonist he was sent to investigate [...]",
+      "expected": {
+        "category": "CREW_CALL",
+        "tags": [
+          "CASTING_ROLES"
+        ]
+      },
+      "status": "pass",
+      "catMatch": true,
+      "missingTags": [],
+      "elapsedMs": 1805,
+      "llm": {
+        "category": "CREW_CALL",
+        "tags": [
+          "CASTING_ROLES",
+          "CASTING_EXTRAS",
+          "SHOOT_DATES_PRESENT",
+          "PAID",
+          "HAS_CONTACT_INFO"
+        ],
+        "confidence": 0.95,
+        "is_bump": false,
+        "reasoning": "This is a clear casting call for voice actors and extras for a student film, includes specific shoot dates (Winter Week 5), specifies PAID status, and provides contact info via application link. Confidence is high due to explicit CREW_CALL indicators.",
+        "film_title": "Hangtown Animated Short",
+        "logline": "Children gather ‘round a campfire to tell the story of how their sleepy, backwards town got the nickname Hangtown back in 1861, through the story of a Chicago detective and the serial arsonist he was sent to investigate [...]",
+        "production_type": "Wildcat Animate Film",
+        "roles_mentioned": null,
+        "shoot_dates_text": "Winter Week 5 (Feb 2nd to 6th)",
+        "petition_location": "Fill out this form: https://example.com/petition",
+        "pay": "paid",
+        "grant_amount": null,
+        "grant_status": null,
+        "deadline_text": null,
+        "deadline_iso": null,
+        "application_url": "https://example.com/petition",
+        "eligibility_text": null,
+        "grant_scope": null,
+        "event_date_text": null,
+        "event_location": null,
+        "rsvp_url": null,
+        "_usage": {
+          "prompt_tokens": 1620,
+          "total_tokens": 1980,
+          "completion_tokens": 360,
+          "prompt_tokens_details": null
+        }
+      }
+    },
+    {
+      "caseIndex": 8,
+      "csvRow": 13,
+      "note": "Remember Her casting call still open",
+      "from": "Alicia Echavarria <aliciaechavarria2031@U.NORTHWESTERN.EDU>",
+      "subject": "STILL OPEN ***REMEMBER HER CASTING CALL***",
+      "bodyTextSent": "CASTING CALL still open!!! Form due *THIS SUNDAY*!<br><br>CASTING CALL<br>for<br>REMEMBER HER<br><br>A PPSL Film<br><br>Written by Alicia V. Echavarria<br><br>Log line:<br>The night before her flight to her mom’s home country, Yajaira is haunted<br>by a Dominican folkloric creature called a ciguapa who she comes to realize<br>is a manifestation of her own feelings of disconnection to her family’s<br>culture. [...]",
+      "expected": {
+        "category": "CREW_CALL",
+        "tags": [
+          "CASTING_ROLES"
+        ]
+      },
+      "status": "pass",
+      "catMatch": true,
+      "missingTags": [],
+      "elapsedMs": 2200,
+      "llm": {
+        "category": "CREW_CALL",
+        "tags": [
+          "CASTING_ROLES",
+          "SHOOT_DATES_PRESENT",
+          "PAID",
+          "HAS_CONTACT_INFO",
+          "BUMP",
+          "REPLY_CHAIN"
+        ],
+        "confidence": 0.95,
+        "is_bump": true,
+        "reasoning": "The email explicitly seeks actors for named speaking roles in a PPSL film and includes a deadline (THIS SUNDAY), making it a CREW_CALL with casting roles and shoot dates. It is marked as a bump due to the subject line containing 'REMEMBER HER CASTING CALL' and the body opening with 'CASTING CALL still open!!!', indicating a re-post to boost visibility.",
+        "film_title": "REMEMBER HER",
+        "logline": "The night before her flight to her mom’s home country, Yajaira is haunted by a Dominican folkloric creature called a ciguapa who she comes to realize is a manifestation of her own feelings of disconnection to her family’s culture.",
+        "production_type": "PPSL Film",
+        "roles_mentioned": null,
+        "shoot_dates_text": null,
+        "petition_location": "Form due THIS SUNDAY",
+        "pay": "unpaid",
+        "grant_amount": null,
+        "grant_status": null,
+        "deadline_text": "THIS SUNDAY",
+        "deadline_iso": null,
+        "application_url": null,
+        "eligibility_text": null,
+        "grant_scope": null,
+        "event_date_text": null,
+        "event_location": null,
+        "rsvp_url": null,
+        "_usage": {
+          "prompt_tokens": 1583,
+          "total_tokens": 1956,
+          "completion_tokens": 373,
+          "prompt_tokens_details": null
+        }
+      }
+    },
+    {
+      "caseIndex": 9,
+      "csvRow": 18,
+      "note": "The Cage RTVF equipment room hiring",
+      "from": "Jankhna Sura <jankhna.sura@NORTHWESTERN.EDU>",
+      "subject": "The Cage is HIRING!!!",
+      "bodyTextSent": "📣 We’re hiring! 📣<br><br>The RTVF Equipment Resource Center, “The Cage,” is hiring student workers for Spring 2026 (and beyond). The Cage circulates equipment for approximately 300 faculty, staff, and students in the department. Job duties include, but aren’t limited to, preparing reservations, checking orders out, returning items, and inventory. Ideal characteristic traits are attention to detail, good customer service, good communication skills, reliable nature, fast learner and worker, and good work ethic. Position does require bending, lifting, carrying, and moving around a good amount o",
+      "expected": {
+        "category": "ADMIN",
+        "tags": []
+      },
+      "status": "pass",
+      "catMatch": true,
+      "missingTags": [],
+      "elapsedMs": 922,
+      "llm": {
+        "category": "ADMIN",
+        "tags": [
+          "BUMP",
+          "REPLY_CHAIN"
+        ],
+        "confidence": 0.95,
+        "is_bump": true,
+        "reasoning": "The email is an official department hiring announcement for The Cage, which falls under ADMIN category. It includes 'BUMP' in the body with hiring language, triggering the BUMP tag.",
+        "film_title": null,
+        "logline": null,
+        "production_type": null,
+        "roles_mentioned": null,
+        "shoot_dates_text": null,
+        "petition_location": null,
+        "pay": null,
+        "grant_amount": null,
+        "grant_status": null,
+        "deadline_text": null,
+        "deadline_iso": null,
+        "application_url": null,
+        "eligibility_text": null,
+        "grant_scope": null,
+        "event_date_text": null,
+        "event_location": null,
+        "rsvp_url": null,
+        "_usage": {
+          "prompt_tokens": 1607,
+          "total_tokens": 1832,
+          "completion_tokens": 225,
+          "prompt_tokens_details": null
+        }
+      }
+    },
+    {
+      "caseIndex": 10,
+      "csvRow": 20,
+      "note": "Virtual Writer's Circle (script workshop)",
+      "from": "Script Co-chairs <studio22.script@GMAIL.COM>",
+      "subject": "Virtual Writer's Circle Today!",
+      "bodyTextSent": "Good afternoon!<br><br>In lieu of the ongoing weather, writer's circle will be held<br>virtually today! Find a cozy place on campus, click the zoom link here<br>&lt;https://urldefense.com/v3/__https://us05web.zoom.us/j/3464655560?pwd=uWXZKGYxjnEpoeQMfg5W7KDoO7GSHF.1__;!!Dq0X2DkFhyF93HkjWTBQKhk!XjtL50N1kXo3xBMlc3m2DFJlcQTUZUHEFfICXJ_lVwZySQq6CQJbY6DTBg-U4sWPyffeA0NsxlSQZi3g1fyRRTLUMk7Jr19JG6shrq0$ &gt;,<br>and enter 1maXy8 as the meeting passcode!<br><br>We look forward to seeing you!<br>Script chairs",
+      "expected": {
+        "category": "EVENT",
+        "tags": []
+      },
+      "status": "pass",
+      "catMatch": true,
+      "missingTags": [],
+      "elapsedMs": 1918,
+      "llm": {
+        "category": "EVENT",
+        "tags": [
+          "MEETING",
+          "RSVP"
+        ],
+        "confidence": 0.95,
+        "is_bump": false,
+        "reasoning": "The email announces a virtual writer's circle meeting happening today, which is an informational session about a club activity, fitting the EVENT category with MEETING and RSVP tags.",
+        "film_title": null,
+        "logline": null,
+        "production_type": null,
+        "roles_mentioned": null,
+        "shoot_dates_text": null,
+        "petition_location": null,
+        "pay": null,
+        "grant_amount": null,
+        "grant_status": null,
+        "deadline_text": null,
+        "deadline_iso": null,
+        "application_url": null,
+        "eligibility_text": null,
+        "grant_scope": null,
+        "event_date_text": "today",
+        "event_location": "campus (virtual)",
+        "rsvp_url": "https://urldefense.com/v3/__https://us05web.zoom.us/j/3464655560?pwd=uWXZKGYxjnEpoeQMfg5W7KDoO7GSHF.1__;!!Dq0X2DkFhyF93HkjWTBQKhk!XjtL50N1kXo3xBMlc3m2DFJlcQTUZUHEFfICXJ_lVwZySQq6CQJbY6DTBg-U4sWPyffeA0NsxlSQZi3g1fyRRTLUMk7Jr19JG6shrq0",
+        "_usage": {
+          "prompt_tokens": 1705,
+          "total_tokens": 2096,
+          "completion_tokens": 391,
+          "prompt_tokens_details": null
+        }
+      }
+    },
+    {
+      "caseIndex": 11,
+      "csvRow": 21,
+      "note": "School's Out crew call, sitcom pilot",
+      "from": "Clare Keady <clarekeady2028@U.NORTHWESTERN.EDU>",
+      "subject": "SCHOOL'S OUT CREW CALL",
+      "bodyTextSent": "Seeking *CREW* FOR:<br><br>SCHOOL’S OUT<br>[image: image.png]<br><br>An RTVF Sitcom Production Grant Pilot<br><br>Written by Zoe Kritzer<br><br>Directed by Ariel Paul<br><br>Produced by Clare Keady and Livia Arantes<br><br>A rebellious high school grad/amateur DJ and her uptight, rule-following<br>younger sister are forced to survive working at an underfunded<br>summer school to repent for a disastrous drunken prank.<br><br>*Shooting*: Spring 2026, Weekend *4 (4/24-4/26)* [...]",
+      "expected": {
+        "category": "CREW_CALL",
+        "tags": []
+      },
+      "status": "pass",
+      "catMatch": true,
+      "missingTags": [],
+      "elapsedMs": 2350,
+      "llm": {
+        "category": "CREW_CALL",
+        "tags": [
+          "CASTING_ROLES",
+          "SHOOT_DATES_PRESENT",
+          "PAID",
+          "CREW_PROD",
+          "HAS_CONTACT_INFO"
+        ],
+        "confidence": 0.95,
+        "is_bump": false,
+        "reasoning": "The email is a direct crew call seeking production personnel for a sitcom pilot, includes specific shoot dates (Spring 2026, Weekend 4/24-4/26), mentions a producer role, and provides a contact method via petition location. It is not a bump as it does not open with bump language or reference a prior announcement.",
+        "film_title": "SCHOOL’S OUT",
+        "logline": "A rebellious high school grad/amateur DJ and her uptight, rule-following younger sister are forced to survive working at an underfunded summer school to repent for a disastrous drunken prank.",
+        "production_type": "Sitcom Production Grant",
+        "roles_mentioned": [
+          "Producer"
+        ],
+        "shoot_dates_text": "Spring 2026, Weekend 4 (4/24-4/26)",
+        "petition_location": "Petitions at Shakesmart",
+        "pay": "unpaid",
+        "grant_amount": null,
+        "grant_status": null,
+        "deadline_text": null,
+        "deadline_iso": null,
+        "application_url": null,
+        "eligibility_text": null,
+        "grant_scope": null,
+        "event_date_text": null,
+        "event_location": null,
+        "rsvp_url": null,
+        "_usage": {
+          "prompt_tokens": 1612,
+          "total_tokens": 1982,
+          "completion_tokens": 370,
+          "prompt_tokens_details": null
+        }
+      }
+    },
+    {
+      "caseIndex": 12,
+      "csvRow": 23,
+      "note": "Course project team survey (not film production)",
+      "from": "Ian Lundeen <ianlundeen2026@U.NORTHWESTERN.EDU>",
+      "subject": "Course Project Team designing solutions for RTVF students",
+      "bodyTextSent": "Hello everyone,<br><br>We’re part of a student group working on a tech-enabled solution aimed at<br>supporting RTVF students and others working on film sets.<br><br>Our goal is to better understand the pain points you encounter during your<br>projects. Whether that’s sourcing props, film financing, on-set logistics,<br>or anything else that makes production harder than it needs to be. Your<br>feedback will directly inform and guide what we build. [...]",
+      "expected": {
+        "category": "OTHER",
+        "tags": []
+      },
+      "status": "fail",
+      "catMatch": false,
+      "missingTags": [],
+      "elapsedMs": 1319,
+      "llm": {
+        "category": "RESOURCE",
+        "tags": [
+          "EQUIPMENT",
+          "PROPS_COSTUMES",
+          "LOCATION"
+        ],
+        "confidence": 0.95,
+        "is_bump": false,
+        "reasoning": "The email describes a student group seeking feedback on pain points related to sourcing props, film financing, and on-set logistics, which falls under resource requests (equipment, props/costumes, location). It is not a crew call, grant, event, or admin announcement, and contains no bump indicators.",
+        "film_title": null,
+        "logline": null,
+        "production_type": null,
+        "roles_mentioned": null,
+        "shoot_dates_text": null,
+        "petition_location": null,
+        "pay": null,
+        "grant_amount": null,
+        "grant_status": null,
+        "deadline_text": null,
+        "deadline_iso": null,
+        "application_url": null,
+        "eligibility_text": null,
+        "grant_scope": null,
+        "event_date_text": null,
+        "event_location": null,
+        "rsvp_url": null,
+        "_usage": {
+          "prompt_tokens": 1564,
+          "total_tokens": 1820,
+          "completion_tokens": 256,
+          "prompt_tokens_details": null
+        }
+      }
+    }
+  ]
+}
