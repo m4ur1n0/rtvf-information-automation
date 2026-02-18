@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { Users, DollarSign, Star, CalendarDays, Package } from "lucide-react";
 import type { ParsedEmailRow } from "@/lib/api";
 import { EmailDetailPanel } from "./EmailDetailPanel";
 import { formatSentDate } from "@/lib/format";
@@ -18,18 +19,18 @@ type CategoryFilter = "ALL" | "GRANT" | "CREW_CALL" | "CASTING" | "EVENT" | "RES
 interface CategoryConfig {
   key: CategoryFilter;
   label: string;
-  shortLabel: string;
+  icon: React.ReactNode;
   color: string;
   detailType: "grant" | "crew" | "casting" | "resource" | "event";
 }
 
 const categories: CategoryConfig[] = [
-  { key: "ALL", label: "All", shortLabel: "All", color: "var(--text-secondary)", detailType: "grant" },
-  { key: "CREW_CALL", label: "Crew", shortLabel: "C", color: "var(--accent-crew)", detailType: "crew" },
-  { key: "GRANT", label: "Grants", shortLabel: "$", color: "var(--accent-grant)", detailType: "grant" },
-  { key: "CASTING", label: "Casting", shortLabel: "A", color: "var(--accent-casting)", detailType: "casting" },
-  { key: "EVENT", label: "Events", shortLabel: "E", color: "var(--accent-event)", detailType: "event" },
-  { key: "RESOURCE", label: "Equipment", shortLabel: "R", color: "var(--accent-resource)", detailType: "resource" },
+  { key: "ALL", label: "All", icon: null, color: "var(--text-secondary)", detailType: "grant" },
+  { key: "CREW_CALL", label: "Crew", icon: <Users size={11} />, color: "var(--accent-crew)", detailType: "crew" },
+  { key: "GRANT", label: "Grants", icon: <DollarSign size={11} />, color: "var(--accent-grant)", detailType: "grant" },
+  { key: "CASTING", label: "Casting", icon: <Star size={11} />, color: "var(--accent-casting)", detailType: "casting" },
+  { key: "EVENT", label: "Events", icon: <CalendarDays size={11} />, color: "var(--accent-event)", detailType: "event" },
+  { key: "RESOURCE", label: "Equipment", icon: <Package size={11} />, color: "var(--accent-resource)", detailType: "resource" },
 ];
 
 function getCategoryConfig(email: ParsedEmailRow): CategoryConfig {
@@ -103,7 +104,7 @@ export function InboxDashboard({ grants, crewCalls, resources, castingCalls, eve
             >
               {cat.key !== "ALL" && (
                 <span className="inbox-filter-badge" style={{ background: cat.color }}>
-                  {cat.shortLabel}
+                  {cat.icon}
                 </span>
               )}
               <span className="inbox-filter-label">{cat.label}</span>
@@ -151,7 +152,7 @@ export function InboxDashboard({ grants, crewCalls, resources, castingCalls, eve
                         style={{ background: categoryConfig.color }}
                         title={categoryConfig.label}
                       >
-                        {categoryConfig.shortLabel}
+                        {categoryConfig.icon}
                       </div>
 
                       <div className="inbox-item-content">
@@ -180,12 +181,33 @@ export function InboxDashboard({ grants, crewCalls, resources, castingCalls, eve
           </div>
         </div>
 
-        {/* Right Side: Detail Panel */}
-        <EmailDetailPanel
-          email={selectedEmail}
-          type={selectedCategory?.detailType ?? "grant"}
-        />
+        {/* Right Side: Detail Panel (desktop only) */}
+        <div className="inbox-detail-desktop">
+          <EmailDetailPanel
+            email={selectedEmail}
+            type={selectedCategory?.detailType ?? "grant"}
+          />
+        </div>
       </div>
+
+      {/* Mobile bottom-sheet drawer */}
+      {selectedEmail && (
+        <div
+          className="inbox-modal-overlay"
+          onClick={() => { setSelectedEmail(null); setSelectedCategory(null); }}
+        >
+          <div
+            className="inbox-modal-content"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="inbox-modal-handle" />
+            <EmailDetailPanel
+              email={selectedEmail}
+              type={selectedCategory?.detailType ?? "grant"}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

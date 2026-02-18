@@ -1516,6 +1516,93 @@
   opacity: 0.6;
 }
 
+/* Inbox detail panel — desktop only */
+.inbox-detail-desktop {
+  flex: 0 0 40%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.inbox-detail-desktop .detail-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+
+/* Mobile modal overlay — hidden on desktop */
+.inbox-modal-overlay {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  /* Hide desktop detail panel on mobile */
+  .inbox-detail-desktop {
+    display: none;
+  }
+
+  /* Full-width list panel on mobile */
+  .tabbed-content .list-panel {
+    flex: 1 1 auto;
+    min-height: 400px;
+    height: auto;
+  }
+
+  .tabbed-content .list-panel .list-panel-content {
+    overflow-y: visible;
+    max-height: none;
+  }
+
+  /* Bottom-sheet drawer */
+  .inbox-modal-overlay {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 100;
+    align-items: flex-end;
+    justify-content: center;
+    animation: fadeInOverlay 0.2s ease;
+  }
+
+  .inbox-modal-content {
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    box-shadow: var(--shadow-lg);
+    background: var(--bg-secondary);
+    animation: inboxSlideUp 0.25s ease;
+  }
+
+  @keyframes inboxSlideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+
+  .inbox-modal-handle {
+    width: 40px;
+    height: 4px;
+    background: var(--border-emphasis);
+    border-radius: 9999px;
+    margin: 10px auto 0;
+  }
+
+  .inbox-modal-content .detail-panel {
+    border: none;
+    border-radius: 0;
+    flex: none;
+    height: auto;
+  }
+
+  @keyframes fadeInOverlay {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+}
+
+/* End inbox mobile drawer */
+
 } /* End @layer components */
 
 /* ═══════════════════════════════════════════════════════════
@@ -1599,6 +1686,13 @@
 .grants-detail-panel {
   position: sticky;
   top: 72px;
+  max-height: calc(100vh - 88px);
+  overflow: hidden;
+}
+
+/* When EmailDetailPanel is used inside grants layout, let it fill the panel height */
+.grants-detail-panel .detail-panel {
+  height: 100%;
   max-height: calc(100vh - 88px);
 }
 

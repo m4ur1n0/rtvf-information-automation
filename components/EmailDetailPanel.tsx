@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import type { ParsedEmailRow } from "@/lib/api";
 import { formatSentDate } from "@/lib/format";
 
@@ -11,6 +11,19 @@ interface EmailDetailPanelProps {
 
 export function EmailDetailPanel({ email, type }: EmailDetailPanelProps) {
   const [bodyMode, setBodyMode] = useState<"html" | "text">("html");
+  const [iframeHeight, setIframeHeight] = useState(400);
+
+  const handleIframeLoad = useCallback((e: React.SyntheticEvent<HTMLIFrameElement>) => {
+    try {
+      const doc = e.currentTarget.contentDocument;
+      if (doc) {
+        const h = doc.documentElement.scrollHeight || doc.body?.scrollHeight;
+        if (h && h > 0) setIframeHeight(Math.min(h + 24, 1200));
+      }
+    } catch {
+      // cross-origin; keep default height
+    }
+  }, []);
 
   if (!email) {
     return (
@@ -31,9 +44,7 @@ export function EmailDetailPanel({ email, type }: EmailDetailPanelProps) {
       return { label: "Unclear", color: "status-unclear" };
     }
     if (type === "crew") {
-      if (email.tags.includes("PAID")) return { label: "Paid", color: "status-open" };
-      if (email.tags.includes("UNPAID")) return { label: "Unpaid", color: "status-unclear" };
-      return { label: "Pay Unclear", color: "status-upcoming" };
+      return { label: "Crew Call", color: "status-open" };
     }
     if (type === "casting") {
       return {
@@ -80,34 +91,50 @@ export function EmailDetailPanel({ email, type }: EmailDetailPanelProps) {
     const showHtml = bodyMode === "html" && hasHtml;
 
     if (showHtml) {
+      // cid: references are inline MIME attachments — browsers can't resolve them.
+      // Replace each one with a grey SVG placeholder that preserves layout.
+      const CID_PLACEHOLDER =
+        "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='80'%3E" +
+        "%3Crect width='100%25' height='100%25' fill='%23f4f4f4' rx='4'/%3E" +
+        "%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' " +
+        "font-family='sans-serif' font-size='12' fill='%23999'%3E" +
+        "📎 inline image (not stored)%3C/text%3E%3C/svg%3E";
+
+      const processedHtml = (email.body_html ?? "")
+        .replace(/src="cid:[^"]*"/gi, `src="${CID_PLACEHOLDER}"`)
+        .replace(/src='cid:[^']*'/gi, `src="${CID_PLACEHOLDER}"`);
+
       // Wrap in a minimal HTML shell so styles render correctly inside the iframe
       const wrappedHtml = `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<base target="_blank">
 <style>
   body { margin: 12px 16px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 14px; line-height: 1.6; color: #1a1a1a; background: #fff; word-break: break-word; }
   a { color: #4f6ef7; }
   img { max-width: 100%; height: auto; }
 </style>
 </head>
-<body>${email.body_html}</body>
+<body>${processedHtml}</body>
 </html>`;
 
       return (
         <div className="detail-body-iframe-wrapper">
           <iframe
             srcDoc={wrappedHtml}
-            sandbox="allow-popups allow-popups-to-escape-sandbox"
+            sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
             title="Email body"
             className="detail-body-iframe"
+            onLoad={handleIframeLoad}
             style={{
               width: "100%",
-              minHeight: "300px",
+              height: `${iframeHeight}px`,
               border: "none",
               borderRadius: "var(--radius-sm)",
               background: "#fff",
+              display: "block",
             }}
           />
         </div>
@@ -363,15 +390,6 @@ export function EmailDetailPanel({ email, type }: EmailDetailPanelProps) {
             </div>
           </div>
         )}
-
-        {/* Confidence */}
-        <div className="detail-section">
-          <div className="detail-section-label">Confidence</div>
-          <div className="confidence-bar">
-            <div className="confidence-fill" style={{ width: `${email.confidence * 100}%` }} />
-            <span className="confidence-text">{(email.confidence * 100).toFixed(0)}%</span>
-          </div>
-        </div>
 
         {/* Category-specific extracted metadata */}
         {renderCrewMeta()}

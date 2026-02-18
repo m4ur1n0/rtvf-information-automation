@@ -435,6 +435,16 @@ function _finalize(category, tags, reasons, combined, deadlines, contacts, baseC
 /** Strip HTML tags and decode common entities → readable plain text */
 export function htmlToPlainText(html) {
     return String(html ?? "")
+        // Preserve anchor href values inline: <a href="URL">label</a> → "label (URL)"
+        // Handles urldefense.com proxy URLs by extracting the real destination URL
+        .replace(/<a\s[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi, (_match, href, label) => {
+            const cleanLabel = label.replace(/<[^>]+>/g, "").trim();
+            // Unwrap urldefense.com proxy links to get the real URL
+            const realUrl = _unwrapUrlDefense(href);
+            // Don't duplicate if label already is the URL, or if label is empty
+            if (!cleanLabel || cleanLabel === realUrl) return realUrl;
+            return `${cleanLabel} (${realUrl})`;
+        })
         .replace(/<br\s*\/?>/gi, "\n")
         .replace(/<\/p>/gi, "\n\n")
         .replace(/<\/div>/gi, "\n")
@@ -446,7 +456,29 @@ export function htmlToPlainText(html) {
         .replace(/&gt;/g, ">")
         .replace(/&quot;/g, '"')
         .replace(/&#39;/g, "'")
+        // Collapse runs of blank lines left by stripped tags
+        .replace(/\n{3,}/g, "\n\n")
         .trim();
+}
+
+/** Unwrap Proofpoint/urldefense.com proxy URLs to get the real destination */
+function _unwrapUrlDefense(url) {
+    try {
+        // urldefense v3: https://urldefense.com/v3/__REAL_URL__;!!GIBBERISH
+        // The real URL sits literally between __ and __; — no encoding, just extract it.
+        const v3 = url.match(/urldefense\.com\/v3\/__(.+?)__;/);
+        if (v3) return v3[1];
+
+        // urldefense v2: https://urldefense.proofpoint.com/v2/url?u=ENCODED&...
+        // Encoding: - → %, _ → /
+        const v2 = url.match(/urldefense(?:\.proofpoint)?\.com\/v2\/url\?u=([^&]+)/);
+        if (v2) {
+            return decodeURIComponent(v2[1].replace(/-/g, "%").replace(/_/g, "/"));
+        }
+    } catch {
+        // decoding failed — fall through to return the raw URL
+    }
+    return url;
 }
 
 /** Remove quoted reply chains so the LLM only sees the "new content" portion */
