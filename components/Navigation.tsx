@@ -85,6 +85,7 @@ export function Navigation() {
       >
         <Link
           href="/"
+          prefetch={false}
           style={{
             fontFamily: "var(--font-display)",
             fontSize: "20px",
@@ -102,6 +103,7 @@ export function Navigation() {
         <div className="nav-desktop-links">
           <Link
             href="/"
+            prefetch={false}
             style={navItemStyle(isActive("/"))}
             onMouseEnter={(e) => {
               if (!isActive("/")) {
@@ -122,6 +124,7 @@ export function Navigation() {
 
           <Link
             href="/petitions"
+            prefetch={false}
             style={navItemStyle(isActive("/petitions"))}
             onMouseEnter={(e) => {
               if (!isActive("/petitions")) {
@@ -142,6 +145,7 @@ export function Navigation() {
 
           <Link
             href="/grants"
+            prefetch={false}
             style={navItemStyle(isActive("/grants"))}
             onMouseEnter={(e) => {
               if (!isActive("/grants")) {
@@ -162,6 +166,7 @@ export function Navigation() {
 
           <Link
             href="/production-handbook"
+            prefetch={false}
             style={navItemStyle(isActive("/production-handbook"))}
             onMouseEnter={(e) => {
               if (!isActive("/production-handbook")) {
@@ -182,6 +187,7 @@ export function Navigation() {
 
           <Link
             href="/calendar"
+            prefetch={false}
             style={navItemStyle(isActive("/calendar"))}
             onMouseEnter={(e) => {
               if (!isActive("/calendar")) {
@@ -274,23 +280,23 @@ export function Navigation() {
             background: "var(--bg-secondary)",
           }}
         >
-          <Link href="/" style={mobileNavItemStyle(isActive("/"))}>
+          <Link href="/" prefetch={false} style={mobileNavItemStyle(isActive("/"))}>
             <Inbox size={16} />
             Inbox
           </Link>
-          <Link href="/petitions" style={mobileNavItemStyle(isActive("/petitions"))}>
+          <Link href="/petitions" prefetch={false} style={mobileNavItemStyle(isActive("/petitions"))}>
             <FileText size={16} />
             Petitions
           </Link>
-          <Link href="/grants" style={mobileNavItemStyle(isActive("/grants"))}>
+          <Link href="/grants" prefetch={false} style={mobileNavItemStyle(isActive("/grants"))}>
             <DollarSign size={16} />
             Grants
           </Link>
-          <Link href="/production-handbook" style={mobileNavItemStyle(isActive("/production-handbook") || pathname.startsWith("/production-handbook/"))}>
+          <Link href="/production-handbook" prefetch={false} style={mobileNavItemStyle(isActive("/production-handbook") || pathname.startsWith("/production-handbook/"))}>
             <BookOpen size={16} />
             Handbook Wiki
           </Link>
-          <Link href="/calendar" style={mobileNavItemStyle(isActive("/calendar"))}>
+          <Link href="/calendar" prefetch={false} style={mobileNavItemStyle(isActive("/calendar"))}>
             <CalendarIcon size={16} />
             Timeline
           </Link>

@@ -1,7 +1,7 @@
 {
-  "ran_at": "2026-02-18T21:03:23.294Z",
-  "model": "nvidia/nemotron-3-nano-30b-a3b",
-  "schema": "guided_json",
+  "ran_at": "2026-02-19T17:57:13.742Z",
+  "model": "gpt-oss-120b",
+  "schema": "json_schema_strict",
   "summary": {
     "total": 12,
     "pass": 11,
@@ -10,8 +10,8 @@
     "pass_rate": "92%"
   },
   "latency": {
-    "avg_ms": 1608,
-    "max_ms": 2350
+    "avg_ms": 862,
+    "max_ms": 1534
   },
   "by_category": {
     "RESOURCE": {
@@ -35,13 +35,13 @@
       "error": 0
     },
     "EVENT": {
-      "pass": 1,
-      "fail": 0,
+      "pass": 0,
+      "fail": 1,
       "error": 0
     },
     "OTHER": {
-      "pass": 0,
-      "fail": 1,
+      "pass": 1,
+      "fail": 0,
       "error": 0
     }
   },
@@ -62,39 +62,47 @@
       "status": "pass",
       "catMatch": true,
       "missingTags": [],
-      "elapsedMs": 1388,
+      "elapsedMs": 877,
       "llm": {
         "category": "RESOURCE",
         "tags": [
           "BUMP",
-          "EQUIPMENT",
-          "PROPS_COSTUMES"
+          "HAS_CONTACT_INFO",
+          "PROPS_COSTUMES",
+          "EQUIPMENT"
         ],
-        "confidence": 0.95,
+        "confidence": 0.97,
         "is_bump": true,
-        "reasoning": "The email is a bump requesting lamps and a lounge chair, which are equipment and props, fitting the RESOURCE category.",
+        "reasoning": "The email requests specific props and equipment for a senior directing film and provides a contact email, and it begins with a clear BUMP notice, indicating a resource request with high certainty.",
         "film_title": "If The Hand Fits",
         "logline": null,
         "production_type": "Senior Directing Film",
         "roles_mentioned": null,
-        "shoot_dates_text": null,
+        "shoot_dates_text": "this weekend",
         "petition_location": null,
         "pay": null,
         "grant_amount": null,
         "grant_status": null,
         "deadline_text": null,
         "deadline_iso": null,
-        "application_url": "asianaspaw2028@u.northwestern.edu",
+        "application_url": null,
         "eligibility_text": null,
         "grant_scope": null,
         "event_date_text": null,
         "event_location": null,
         "rsvp_url": null,
         "_usage": {
-          "prompt_tokens": 1754,
-          "total_tokens": 2000,
-          "completion_tokens": 246,
-          "prompt_tokens_details": null
+          "total_tokens": 3618,
+          "completion_tokens": 1002,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": 0,
+            "rejected_prediction_tokens": 0,
+            "reasoning_tokens": 0
+          },
+          "prompt_tokens": 2616,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
         }
       }
     },
@@ -114,42 +122,50 @@
       "status": "pass",
       "catMatch": true,
       "missingTags": [],
-      "elapsedMs": 1115,
+      "elapsedMs": 995,
       "llm": {
         "category": "CREW_CALL",
         "tags": [
           "BUMP",
-          "CASTING_ROLES",
-          "SHOOT_DATES_PRESENT",
-          "PAID",
-          "CREW_PROD",
-          "HAS_CONTACT_INFO"
+          "PAY_UNCLEAR",
+          "CREW_PROD"
         ],
-        "confidence": 0.95,
+        "confidence": 0.96,
         "is_bump": true,
-        "reasoning": "The email begins with 'BUMPING THIS!!!' indicating a bump, and seeks crew heads for a sitcom production grant pilot, specifying production roles and including a contact link.",
+        "reasoning": "The email is a repost (BUMP) seeking crew for the sitcom pilot \"WingDad\", mentions producers and does not specify pay, fitting the CREW_CALL category with high confidence.",
         "film_title": "WingDad",
         "logline": "Recent college grad and perpetually single Trinity is ready to embark on her search for love in the real world, just as [...]",
         "production_type": "Sitcom Production Grant",
-        "roles_mentioned": null,
-        "shoot_dates_text": "Spring",
-        "petition_location": "Zoom",
-        "pay": "unpaid",
+        "roles_mentioned": [
+          "Writer",
+          "Director",
+          "Producer"
+        ],
+        "shoot_dates_text": "WE FILM IN SPRING",
+        "petition_location": "Petitions are on Zoom",
+        "pay": "unclear",
         "grant_amount": null,
         "grant_status": null,
         "deadline_text": null,
         "deadline_iso": null,
-        "application_url": "Zoom",
+        "application_url": null,
         "eligibility_text": null,
         "grant_scope": null,
         "event_date_text": null,
         "event_location": null,
         "rsvp_url": null,
         "_usage": {
-          "prompt_tokens": 1724,
-          "total_tokens": 2016,
-          "completion_tokens": 292,
-          "prompt_tokens_details": null
+          "total_tokens": 3992,
+          "completion_tokens": 1401,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": 0,
+            "rejected_prediction_tokens": 0,
+            "reasoning_tokens": 0
+          },
+          "prompt_tokens": 2591,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
         }
       }
     },
@@ -167,15 +183,15 @@
       "status": "pass",
       "catMatch": true,
       "missingTags": [],
-      "elapsedMs": 1341,
+      "elapsedMs": 425,
       "llm": {
         "category": "DO_NOT_CARE",
         "tags": [
           "BUMP"
         ],
-        "confidence": 0.95,
+        "confidence": 0.98,
         "is_bump": true,
-        "reasoning": "The email is a social game night announcement with no film production relevance, so it falls under DO_NOT_CARE. It is a bump because it starts with 'BUMP' and references a prior announcement.",
+        "reasoning": "The email is a repost (BUMP) of a game night social event with no film-production relevance, fitting the DO_NOT_CARE category.",
         "film_title": null,
         "logline": null,
         "production_type": null,
@@ -190,14 +206,21 @@
         "application_url": null,
         "eligibility_text": null,
         "grant_scope": null,
-        "event_date_text": "Wednesday, January 28th",
-        "event_location": "the Black House",
+        "event_date_text": null,
+        "event_location": null,
         "rsvp_url": null,
         "_usage": {
-          "prompt_tokens": 1618,
-          "total_tokens": 1842,
-          "completion_tokens": 224,
-          "prompt_tokens_details": null
+          "total_tokens": 2995,
+          "completion_tokens": 504,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": 0,
+            "rejected_prediction_tokens": 0,
+            "reasoning_tokens": 0
+          },
+          "prompt_tokens": 2491,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
         }
       }
     },
@@ -215,38 +238,23 @@
       "status": "pass",
       "catMatch": true,
       "missingTags": [],
-      "elapsedMs": 1462,
+      "elapsedMs": 1064,
       "llm": {
         "category": "CREW_CALL",
         "tags": [
-          "BUMP",
-          "CASTING_ROLES",
-          "SHOOT_DATES_PRESENT",
-          "PAID",
-          "CREW_DP",
-          "CREW_SOUND",
-          "CREW_EDITOR",
-          "CREW_GAFF_GRIP",
-          "CREW_PROD",
-          "HAS_CONTACT_INFO",
-          "REPLY_CHAIN"
+          "REPLY_CHAIN",
+          "PAY_UNCLEAR",
+          "HAS_CONTACT_INFO"
         ],
-        "confidence": 0.95,
-        "is_bump": true,
-        "reasoning": "The email is a bump of a crew call for Opaline, includes specific roles (DP, Sound, Editor, Gaffer, Grip, Producer) and mentions a petition location, so it fits CREW_CALL with multiple role tags and a clear petition instruction.",
+        "confidence": 0.86,
+        "is_bump": false,
+        "reasoning": "The email forwards a crew call for the film Opaline without specifying roles or pay, and the subject starts with 'Re:' indicating a reply chain rather than a bump.",
         "film_title": "Opaline",
         "logline": null,
-        "production_type": "Senior Directing Film",
-        "roles_mentioned": [
-          "DP",
-          "Sound",
-          "Editor",
-          "Gaffer",
-          "Grip",
-          "Producer"
-        ],
+        "production_type": null,
+        "roles_mentioned": null,
         "shoot_dates_text": null,
-        "petition_location": "Petition if you dare. (Location implied near Shakesmart hallway with blue half circle chairs)",
+        "petition_location": "Petition if you dare.",
         "pay": "unclear",
         "grant_amount": null,
         "grant_status": null,
@@ -259,10 +267,17 @@
         "event_location": null,
         "rsvp_url": null,
         "_usage": {
-          "prompt_tokens": 1715,
-          "total_tokens": 2082,
-          "completion_tokens": 367,
-          "prompt_tokens_details": null
+          "total_tokens": 3991,
+          "completion_tokens": 1408,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": 0,
+            "rejected_prediction_tokens": 0,
+            "reasoning_tokens": 0
+          },
+          "prompt_tokens": 2583,
+          "prompt_tokens_details": {
+            "cached_tokens": 2304
+          }
         }
       }
     },
@@ -282,25 +297,27 @@
       "status": "pass",
       "catMatch": true,
       "missingTags": [],
-      "elapsedMs": 1659,
+      "elapsedMs": 579,
       "llm": {
         "category": "CREW_CALL",
         "tags": [
           "CASTING_EXTRAS",
           "SHOOT_DATES_PRESENT",
-          "PAID",
+          "PAY_UNCLEAR",
           "HAS_CONTACT_INFO"
         ],
-        "confidence": 0.95,
+        "confidence": 0.96,
         "is_bump": false,
-        "reasoning": "The email explicitly seeks background extras for a specific shoot date (Sat. Feb 7th) and includes contact emails, fitting CREW_CALL with casting extras, shoot dates, and contact info. Confidence is high due to clear casting call language and details.",
+        "reasoning": "The email is a call for extras for a specific filming date with contact emails but no pay information, fitting the CREW_CALL category.",
         "film_title": "Direction of Sunlight",
         "logline": null,
         "production_type": null,
-        "roles_mentioned": null,
+        "roles_mentioned": [
+          "Extras"
+        ],
         "shoot_dates_text": "Sat. Feb 7th",
-        "petition_location": null,
-        "pay": "unpaid",
+        "petition_location": "Email Noelle (noellerobinson2026@u.northwestern.edu) or Elisa (Elisataylor2026@u.northwestern.edu)",
+        "pay": "unclear",
         "grant_amount": null,
         "grant_status": null,
         "deadline_text": null,
@@ -312,10 +329,17 @@
         "event_location": null,
         "rsvp_url": null,
         "_usage": {
-          "prompt_tokens": 1577,
-          "total_tokens": 1849,
-          "completion_tokens": 272,
-          "prompt_tokens_details": null
+          "total_tokens": 3018,
+          "completion_tokens": 562,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": 0,
+            "rejected_prediction_tokens": 0,
+            "reasoning_tokens": 0
+          },
+          "prompt_tokens": 2456,
+          "prompt_tokens_details": {
+            "cached_tokens": 2304
+          }
         }
       }
     },
@@ -335,33 +359,21 @@
       "status": "pass",
       "catMatch": true,
       "missingTags": [],
-      "elapsedMs": 1822,
+      "elapsedMs": 602,
       "llm": {
         "category": "CREW_CALL",
         "tags": [
-          "CASTING_ROLES",
           "SHOOT_DATES_PRESENT",
-          "PAID",
-          "CREW_DP",
-          "CREW_SOUND",
-          "CREW_EDITOR",
-          "CREW_GAFF_GRIP",
           "CREW_PROD",
-          "HAS_CONTACT_INFO",
-          "BUMP"
+          "PAY_UNCLEAR"
         ],
-        "confidence": 0.95,
-        "is_bump": true,
-        "reasoning": "The body explicitly seeks crew (DP, sound, editor, gaffer, grip, producer) and includes specific shoot dates (Spring Weekends 1 and 3), mentions MultiCulti Studios, and opens with 'Grief Mug' indicating a bump. It lacks explicit pay info, so PAID is set to 'unclear' but included as required.",
+        "confidence": 0.96,
+        "is_bump": false,
+        "reasoning": "The email announces a film project with shooting dates and explicitly asks for a producer, fitting the CREW_CALL category; no payment details are given, so pay status is unclear.",
         "film_title": "Grief Mug",
         "logline": "A plucky comedy about a heartbroken Teresa who upon discovering that she left her grandmother’s ceremonial mug at her ex’s house, must retrieve it with the help of the five stages of grief.",
         "production_type": "MultiCulti Studios Film",
         "roles_mentioned": [
-          "DP",
-          "Sound Designer",
-          "Editor",
-          "Gaffer",
-          "Grip",
           "Producer"
         ],
         "shoot_dates_text": "Spring Weekends 1 (April 3-5) and 3 (April 17-19)",
@@ -378,10 +390,17 @@
         "event_location": null,
         "rsvp_url": null,
         "_usage": {
-          "prompt_tokens": 1604,
-          "total_tokens": 2027,
-          "completion_tokens": 423,
-          "prompt_tokens_details": null
+          "total_tokens": 3306,
+          "completion_tokens": 825,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": 0,
+            "rejected_prediction_tokens": 0,
+            "reasoning_tokens": 0
+          },
+          "prompt_tokens": 2481,
+          "prompt_tokens_details": {
+            "cached_tokens": 2304
+          }
         }
       }
     },
@@ -401,41 +420,48 @@
       "status": "pass",
       "catMatch": true,
       "missingTags": [],
-      "elapsedMs": 1805,
+      "elapsedMs": 1037,
       "llm": {
         "category": "CREW_CALL",
         "tags": [
           "CASTING_ROLES",
-          "CASTING_EXTRAS",
-          "SHOOT_DATES_PRESENT",
-          "PAID",
-          "HAS_CONTACT_INFO"
+          "PAY_UNCLEAR",
+          "SHOOT_DATES_PRESENT"
         ],
-        "confidence": 0.95,
+        "confidence": 0.96,
         "is_bump": false,
-        "reasoning": "This is a clear casting call for voice actors and extras for a student film, includes specific shoot dates (Winter Week 5), specifies PAID status, and provides contact info via application link. Confidence is high due to explicit CREW_CALL indicators.",
+        "reasoning": "The email is a casting call seeking voice actors for a specific animated short and lists recording dates, which matches a CREW_CALL; no payment details are provided, so pay status is unclear.",
         "film_title": "Hangtown Animated Short",
         "logline": "Children gather ‘round a campfire to tell the story of how their sleepy, backwards town got the nickname Hangtown back in 1861, through the story of a Chicago detective and the serial arsonist he was sent to investigate [...]",
         "production_type": "Wildcat Animate Film",
-        "roles_mentioned": null,
+        "roles_mentioned": [
+          "Voice Actor"
+        ],
         "shoot_dates_text": "Winter Week 5 (Feb 2nd to 6th)",
-        "petition_location": "Fill out this form: https://example.com/petition",
-        "pay": "paid",
+        "petition_location": null,
+        "pay": "unclear",
         "grant_amount": null,
         "grant_status": null,
         "deadline_text": null,
         "deadline_iso": null,
-        "application_url": "https://example.com/petition",
+        "application_url": null,
         "eligibility_text": null,
         "grant_scope": null,
         "event_date_text": null,
         "event_location": null,
         "rsvp_url": null,
         "_usage": {
-          "prompt_tokens": 1620,
-          "total_tokens": 1980,
-          "completion_tokens": 360,
-          "prompt_tokens_details": null
+          "total_tokens": 3454,
+          "completion_tokens": 963,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": 0,
+            "rejected_prediction_tokens": 0,
+            "reasoning_tokens": 0
+          },
+          "prompt_tokens": 2491,
+          "prompt_tokens_details": {
+            "cached_tokens": 2304
+          }
         }
       }
     },
@@ -455,27 +481,25 @@
       "status": "pass",
       "catMatch": true,
       "missingTags": [],
-      "elapsedMs": 2200,
+      "elapsedMs": 1534,
       "llm": {
         "category": "CREW_CALL",
         "tags": [
           "CASTING_ROLES",
-          "SHOOT_DATES_PRESENT",
-          "PAID",
-          "HAS_CONTACT_INFO",
-          "BUMP",
-          "REPLY_CHAIN"
+          "PAY_UNCLEAR"
         ],
-        "confidence": 0.95,
-        "is_bump": true,
-        "reasoning": "The email explicitly seeks actors for named speaking roles in a PPSL film and includes a deadline (THIS SUNDAY), making it a CREW_CALL with casting roles and shoot dates. It is marked as a bump due to the subject line containing 'REMEMBER HER CASTING CALL' and the body opening with 'CASTING CALL still open!!!', indicating a re-post to boost visibility.",
+        "confidence": 0.96,
+        "is_bump": false,
+        "reasoning": "The email is a casting call for the PPSL film \"REMEMBER HER\", explicitly seeking actors and providing a logline but no pay details, fitting the CREW_CALL category with CASTING_ROLES and unclear compensation.",
         "film_title": "REMEMBER HER",
         "logline": "The night before her flight to her mom’s home country, Yajaira is haunted by a Dominican folkloric creature called a ciguapa who she comes to realize is a manifestation of her own feelings of disconnection to her family’s culture.",
         "production_type": "PPSL Film",
-        "roles_mentioned": null,
+        "roles_mentioned": [
+          "Actor"
+        ],
         "shoot_dates_text": null,
         "petition_location": "Form due THIS SUNDAY",
-        "pay": "unpaid",
+        "pay": "unclear",
         "grant_amount": null,
         "grant_status": null,
         "deadline_text": "THIS SUNDAY",
@@ -487,10 +511,17 @@
         "event_location": null,
         "rsvp_url": null,
         "_usage": {
-          "prompt_tokens": 1583,
-          "total_tokens": 1956,
-          "completion_tokens": 373,
-          "prompt_tokens_details": null
+          "total_tokens": 3388,
+          "completion_tokens": 929,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": 0,
+            "rejected_prediction_tokens": 0,
+            "reasoning_tokens": 0
+          },
+          "prompt_tokens": 2459,
+          "prompt_tokens_details": {
+            "cached_tokens": 2304
+          }
         }
       }
     },
@@ -508,16 +539,13 @@
       "status": "pass",
       "catMatch": true,
       "missingTags": [],
-      "elapsedMs": 922,
+      "elapsedMs": 680,
       "llm": {
         "category": "ADMIN",
-        "tags": [
-          "BUMP",
-          "REPLY_CHAIN"
-        ],
-        "confidence": 0.95,
-        "is_bump": true,
-        "reasoning": "The email is an official department hiring announcement for The Cage, which falls under ADMIN category. It includes 'BUMP' in the body with hiring language, triggering the BUMP tag.",
+        "tags": [],
+        "confidence": 0.98,
+        "is_bump": false,
+        "reasoning": "The email announces hiring for The Cage, an official department resource center, which is an administrative communication rather than a crew call, grant, event, or resource request.",
         "film_title": null,
         "logline": null,
         "production_type": null,
@@ -536,10 +564,17 @@
         "event_location": null,
         "rsvp_url": null,
         "_usage": {
-          "prompt_tokens": 1607,
-          "total_tokens": 1832,
-          "completion_tokens": 225,
-          "prompt_tokens_details": null
+          "total_tokens": 3011,
+          "completion_tokens": 527,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": 0,
+            "rejected_prediction_tokens": 0,
+            "reasoning_tokens": 0
+          },
+          "prompt_tokens": 2484,
+          "prompt_tokens_details": {
+            "cached_tokens": 2304
+          }
         }
       }
     },
@@ -554,19 +589,16 @@
         "category": "EVENT",
         "tags": []
       },
-      "status": "pass",
-      "catMatch": true,
+      "status": "fail",
+      "catMatch": false,
       "missingTags": [],
-      "elapsedMs": 1918,
+      "elapsedMs": 1497,
       "llm": {
-        "category": "EVENT",
-        "tags": [
-          "MEETING",
-          "RSVP"
-        ],
-        "confidence": 0.95,
+        "category": "DO_NOT_CARE",
+        "tags": [],
+        "confidence": 0.98,
         "is_bump": false,
-        "reasoning": "The email announces a virtual writer's circle meeting happening today, which is an informational session about a club activity, fitting the EVENT category with MEETING and RSVP tags.",
+        "reasoning": "The email announces a virtual writer's circle, a purely social gathering with no film-production relevance, fitting the DO_NOT_CARE category.",
         "film_title": null,
         "logline": null,
         "production_type": null,
@@ -582,13 +614,20 @@
         "eligibility_text": null,
         "grant_scope": null,
         "event_date_text": "today",
-        "event_location": "campus (virtual)",
-        "rsvp_url": "https://urldefense.com/v3/__https://us05web.zoom.us/j/3464655560?pwd=uWXZKGYxjnEpoeQMfg5W7KDoO7GSHF.1__;!!Dq0X2DkFhyF93HkjWTBQKhk!XjtL50N1kXo3xBMlc3m2DFJlcQTUZUHEFfICXJ_lVwZySQq6CQJbY6DTBg-U4sWPyffeA0NsxlSQZi3g1fyRRTLUMk7Jr19JG6shrq0",
+        "event_location": "virtual via Zoom",
+        "rsvp_url": null,
         "_usage": {
-          "prompt_tokens": 1705,
-          "total_tokens": 2096,
-          "completion_tokens": 391,
-          "prompt_tokens_details": null
+          "total_tokens": 3106,
+          "completion_tokens": 541,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": 0,
+            "rejected_prediction_tokens": 0,
+            "reasoning_tokens": 0
+          },
+          "prompt_tokens": 2565,
+          "prompt_tokens_details": {
+            "cached_tokens": 2304
+          }
         }
       }
     },
@@ -606,28 +645,28 @@
       "status": "pass",
       "catMatch": true,
       "missingTags": [],
-      "elapsedMs": 2350,
+      "elapsedMs": 671,
       "llm": {
         "category": "CREW_CALL",
         "tags": [
-          "CASTING_ROLES",
           "SHOOT_DATES_PRESENT",
-          "PAID",
-          "CREW_PROD",
-          "HAS_CONTACT_INFO"
+          "PAY_UNCLEAR",
+          "CREW_PROD"
         ],
-        "confidence": 0.95,
+        "confidence": 0.96,
         "is_bump": false,
-        "reasoning": "The email is a direct crew call seeking production personnel for a sitcom pilot, includes specific shoot dates (Spring 2026, Weekend 4/24-4/26), mentions a producer role, and provides a contact method via petition location. It is not a bump as it does not open with bump language or reference a prior announcement.",
+        "reasoning": "The email is a crew call for a sitcom pilot, lists shooting dates and mentions producers, but does not specify pay, so it fits CREW_CALL with shoot dates present and unclear pay.",
         "film_title": "SCHOOL’S OUT",
         "logline": "A rebellious high school grad/amateur DJ and her uptight, rule-following younger sister are forced to survive working at an underfunded summer school to repent for a disastrous drunken prank.",
         "production_type": "Sitcom Production Grant",
         "roles_mentioned": [
+          "Writer",
+          "Director",
           "Producer"
         ],
         "shoot_dates_text": "Spring 2026, Weekend 4 (4/24-4/26)",
-        "petition_location": "Petitions at Shakesmart",
-        "pay": "unpaid",
+        "petition_location": null,
+        "pay": "unclear",
         "grant_amount": null,
         "grant_status": null,
         "deadline_text": null,
@@ -639,10 +678,17 @@
         "event_location": null,
         "rsvp_url": null,
         "_usage": {
-          "prompt_tokens": 1612,
-          "total_tokens": 1982,
-          "completion_tokens": 370,
-          "prompt_tokens_details": null
+          "total_tokens": 3584,
+          "completion_tokens": 1105,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": 0,
+            "rejected_prediction_tokens": 0,
+            "reasoning_tokens": 0
+          },
+          "prompt_tokens": 2479,
+          "prompt_tokens_details": {
+            "cached_tokens": 2304
+          }
         }
       }
     },
@@ -657,20 +703,16 @@
         "category": "OTHER",
         "tags": []
       },
-      "status": "fail",
-      "catMatch": false,
+      "status": "pass",
+      "catMatch": true,
       "missingTags": [],
-      "elapsedMs": 1319,
+      "elapsedMs": 386,
       "llm": {
-        "category": "RESOURCE",
-        "tags": [
-          "EQUIPMENT",
-          "PROPS_COSTUMES",
-          "LOCATION"
-        ],
-        "confidence": 0.95,
+        "category": "OTHER",
+        "tags": [],
+        "confidence": 0.96,
         "is_bump": false,
-        "reasoning": "The email describes a student group seeking feedback on pain points related to sourcing props, film financing, and on-set logistics, which falls under resource requests (equipment, props/costumes, location). It is not a crew call, grant, event, or admin announcement, and contains no bump indicators.",
+        "reasoning": "The email is a solicitation for feedback on a tech solution for RTVF students and does not fit crew recruitment, grant announcements, events, resource requests, or official admin communications.",
         "film_title": null,
         "logline": null,
         "production_type": null,
@@ -689,10 +731,17 @@
         "event_location": null,
         "rsvp_url": null,
         "_usage": {
-          "prompt_tokens": 1564,
-          "total_tokens": 1820,
-          "completion_tokens": 256,
-          "prompt_tokens_details": null
+          "total_tokens": 2965,
+          "completion_tokens": 519,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": 0,
+            "rejected_prediction_tokens": 0,
+            "reasoning_tokens": 0
+          },
+          "prompt_tokens": 2446,
+          "prompt_tokens_details": {
+            "cached_tokens": 2304
+          }
         }
       }
     }

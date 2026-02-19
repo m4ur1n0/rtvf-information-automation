@@ -1,0 +1,11 @@
+name = "long-recipe-3816"
+main = "worker.js"
+compatibility_date = "2026-02-19"
+workers_dev = true
+account_id = "296c0a9b3a178372259b9db09ecef37f"
+
+[[d1_databases]]
+binding = "DATABASE_BINDING"
+database_name = "listserv-poc"
+database_id = "9968af9d-4b8f-47e6-8eaf-4159943421c3"
+migrations_dir = "migrations"

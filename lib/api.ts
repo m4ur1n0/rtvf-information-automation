@@ -70,9 +70,23 @@ interface FetchEmailsParams {
   limit?: number;
   offset?: number;
   includeDoNotCare?: boolean;
+  summary?: boolean;
   q?: string;
   since?: number;
   until?: number;
+}
+
+interface FetchListParams {
+  limit?: number;
+  offset?: number;
+  summary?: boolean;
+  q?: string;
+  since?: number;
+  until?: number;
+}
+
+interface FetchPetitionsParams extends FetchListParams {
+  casting?: boolean;
 }
 
 interface ApiResponse {
@@ -100,27 +114,52 @@ function parseJsonSafe<T>(json: string | null | undefined, fallback: T): T {
   }
 }
 
-export async function fetchEmails(params: FetchEmailsParams = {}): Promise<ParsedEmailRow[]> {
-  const { category, tag, limit = 25, offset, includeDoNotCare = false, q, since, until } = params;
+function parseEmailRows(data: ApiResponse): ParsedEmailRow[] {
+  return data.rows.map((row) => ({
+    ...row,
+    tags: parseJsonSafe<Tag[]>(row.tags_json, []),
+    reasons: parseJsonSafe<string[]>(row.reasons_json, []),
+    roles_mentioned: parseJsonSafe<string[] | null>(row.roles_json, null),
+  }));
+}
+
+function shouldLogServerFetches(): boolean {
+  if (typeof window !== "undefined") return false;
+  if (process.env.API_DEBUG_LOGS === "true") return true;
+  return process.env.NODE_ENV === "development";
+}
+
+function logServerFetch(payload: Record<string, unknown>): void {
+  if (!shouldLogServerFetches()) return;
+  // This logs in the Next.js server runtime, not browser devtools.
+  console.log(`[next-server-fetch] ${JSON.stringify(payload)}`);
+}
+
+async function fetchEmailRows(
+  path: string,
+  params: Record<string, string | number | boolean | undefined>
+): Promise<ParsedEmailRow[]> {
+  const baseUrl = getApiUrl();
+  const url = new URL(`${baseUrl}${path}`);
+  const startedAt = Date.now();
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined) continue;
+    url.searchParams.set(key, String(value));
+  }
+
+  logServerFetch({
+    stage: "start",
+    path,
+    query: Object.fromEntries(url.searchParams.entries()),
+  });
 
   try {
-    const baseUrl = getApiUrl();
-    const url = new URL(`${baseUrl}/api/emails`);
-
-    if (category) url.searchParams.set("category", category);
-    if (tag) url.searchParams.set("tag", tag);
-    if (q) url.searchParams.set("q", q);
-    if (since !== undefined) url.searchParams.set("since", since.toString());
-    if (until !== undefined) url.searchParams.set("until", until.toString());
-    url.searchParams.set("limit", limit.toString());
-    if (offset !== undefined) url.searchParams.set("offset", offset.toString());
-    if (includeDoNotCare) url.searchParams.set("includeDoNotCare", "true");
-
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
     const response = await fetch(url.toString(), {
-      next: { revalidate: 60 },
+      cache: "no-store",
       signal: controller.signal,
     });
 
@@ -141,19 +180,25 @@ export async function fetchEmails(params: FetchEmailsParams = {}): Promise<Parse
       throw new Error("Invalid API response format: rows is not an array");
     }
 
-    const parsedEmails = data.rows.map((row) => ({
-      ...row,
-      tags: parseJsonSafe<Tag[]>(row.tags_json, []),
-      reasons: parseJsonSafe<string[]>(row.reasons_json, []),
-      roles_mentioned: parseJsonSafe<string[] | null>(row.roles_json, null),
-    }));
+    const parsedEmails = parseEmailRows(data);
 
-    if (process.env.NODE_ENV === "development" && parsedEmails.length > 0) {
-      console.log(`[API] Fetched ${parsedEmails.length} emails (category: ${category || "all"}, tag: ${tag || "none"})`);
-    }
+    logServerFetch({
+      stage: "success",
+      path,
+      query: Object.fromEntries(url.searchParams.entries()),
+      rows: parsedEmails.length,
+      duration_ms: Date.now() - startedAt,
+    });
 
     return parsedEmails;
   } catch (error) {
+    logServerFetch({
+      stage: "error",
+      path,
+      query: Object.fromEntries(url.searchParams.entries()),
+      duration_ms: Date.now() - startedAt,
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
     if (error instanceof Error) {
       if (error.name === "AbortError") {
         throw new Error("Request timeout - Worker API took too long to respond");
@@ -162,6 +207,60 @@ export async function fetchEmails(params: FetchEmailsParams = {}): Promise<Parse
     }
     throw new Error("Unknown error fetching emails");
   }
+}
+
+export async function fetchEmails(params: FetchEmailsParams = {}): Promise<ParsedEmailRow[]> {
+  const { category, tag, limit = 25, offset, includeDoNotCare = false, summary, q, since, until } = params;
+  return fetchEmailRows("/api/emails", {
+    category,
+    tag,
+    q,
+    since,
+    until,
+    summary: summary ? "true" : undefined,
+    limit,
+    offset,
+    includeDoNotCare: includeDoNotCare ? "true" : undefined,
+  });
+}
+
+export async function fetchGrants(params: FetchListParams = {}): Promise<ParsedEmailRow[]> {
+  const { limit = 25, offset, summary, q, since, until } = params;
+  return fetchEmailRows("/api/grants", { limit, offset, summary: summary ? "true" : undefined, q, since, until });
+}
+
+export async function fetchPetitions(params: FetchPetitionsParams = {}): Promise<ParsedEmailRow[]> {
+  const { limit = 25, offset, summary, q, since, until, casting } = params;
+  return fetchEmailRows("/api/petitions", {
+    limit,
+    offset,
+    summary: summary ? "true" : undefined,
+    q,
+    since,
+    until,
+    casting: casting === undefined ? undefined : casting ? "true" : "false",
+  });
+}
+
+export async function fetchEvents(params: FetchListParams = {}): Promise<ParsedEmailRow[]> {
+  const { limit = 25, offset, summary, q, since, until } = params;
+  return fetchEmailRows("/api/events", { limit, offset, summary: summary ? "true" : undefined, q, since, until });
+}
+
+export async function fetchResources(params: FetchListParams = {}): Promise<ParsedEmailRow[]> {
+  const { limit = 25, offset, summary, q, since, until } = params;
+  return fetchEmailRows("/api/resources", { limit, offset, summary: summary ? "true" : undefined, q, since, until });
+}
+
+export async function fetchAdmin(params: FetchListParams = {}): Promise<ParsedEmailRow[]> {
+  const { limit = 25, offset, summary, q, since, until } = params;
+  return fetchEmailRows("/api/admin", { limit, offset, summary: summary ? "true" : undefined, q, since, until });
+}
+
+export async function fetchEmailById(id: string): Promise<ParsedEmailRow> {
+  const rows = await fetchEmailRows("/api/email", { id });
+  if (!rows.length) throw new Error(`Email not found: ${id}`);
+  return rows[0];
 }
 
 export async function fetchEmailsWithRetry(

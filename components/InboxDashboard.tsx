@@ -1,18 +1,18 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Users, DollarSign, Star, CalendarDays, Package } from "lucide-react";
-import type { ParsedEmailRow } from "@/lib/api";
+import {
+  fetchEmailById,
+  fetchEmails,
+  fetchEvents,
+  fetchGrants,
+  fetchPetitions,
+  fetchResources,
+  type ParsedEmailRow,
+} from "@/lib/api";
 import { EmailDetailPanel } from "./EmailDetailPanel";
 import { formatSentDate } from "@/lib/format";
-
-interface InboxDashboardProps {
-  grants: { emails: ParsedEmailRow[]; error?: string };
-  crewCalls: { emails: ParsedEmailRow[]; error?: string };
-  resources: { emails: ParsedEmailRow[]; error?: string };
-  castingCalls: { emails: ParsedEmailRow[]; error?: string };
-  events: { emails: ParsedEmailRow[]; error?: string };
-}
 
 type CategoryFilter = "ALL" | "GRANT" | "CREW_CALL" | "CASTING" | "EVENT" | "RESOURCE";
 
@@ -24,6 +24,13 @@ interface CategoryConfig {
   detailType: "grant" | "crew" | "casting" | "resource" | "event";
 }
 
+interface BucketState {
+  emails: ParsedEmailRow[];
+  error?: string;
+  loading: boolean;
+  loaded: boolean;
+}
+
 const categories: CategoryConfig[] = [
   { key: "ALL", label: "All", icon: null, color: "var(--text-secondary)", detailType: "grant" },
   { key: "CREW_CALL", label: "Crew", icon: <Users size={11} />, color: "var(--accent-crew)", detailType: "crew" },
@@ -32,6 +39,21 @@ const categories: CategoryConfig[] = [
   { key: "EVENT", label: "Events", icon: <CalendarDays size={11} />, color: "var(--accent-event)", detailType: "event" },
   { key: "RESOURCE", label: "Equipment", icon: <Package size={11} />, color: "var(--accent-resource)", detailType: "resource" },
 ];
+
+function emptyBucket(): BucketState {
+  return { emails: [], loading: false, loaded: false };
+}
+
+function initialBuckets(): Record<CategoryFilter, BucketState> {
+  return {
+    ALL: emptyBucket(),
+    GRANT: emptyBucket(),
+    CREW_CALL: emptyBucket(),
+    CASTING: emptyBucket(),
+    EVENT: emptyBucket(),
+    RESOURCE: emptyBucket(),
+  };
+}
 
 function getCategoryConfig(email: ParsedEmailRow): CategoryConfig {
   if (
@@ -52,44 +74,119 @@ function hasMedia(email: ParsedEmailRow): boolean {
   return /\.(jpg|jpeg|png|gif|mp4|mov|webm)|youtube|vimeo|drive\.google/i.test(email.body_text);
 }
 
-export function InboxDashboard({ grants, crewCalls, resources, castingCalls, events }: InboxDashboardProps) {
+async function fetchBucket(filter: CategoryFilter): Promise<ParsedEmailRow[]> {
+  switch (filter) {
+    case "ALL":
+      return fetchEmails({ limit: 25, summary: true });
+    case "GRANT":
+      return fetchGrants({ limit: 25, summary: true });
+    case "CREW_CALL":
+      return fetchPetitions({ limit: 25, casting: false, summary: true });
+    case "CASTING":
+      return fetchPetitions({ limit: 25, casting: true, summary: true });
+    case "EVENT":
+      return fetchEvents({ limit: 25, summary: true });
+    case "RESOURCE":
+      return fetchResources({ limit: 25, summary: true });
+  }
+}
+
+export function InboxDashboard() {
   const [activeFilter, setActiveFilter] = useState<CategoryFilter>("ALL");
-  const [selectedEmail, setSelectedEmail] = useState<ParsedEmailRow | null>(null);
+  const [buckets, setBuckets] = useState<Record<CategoryFilter, BucketState>>(() => initialBuckets());
+  const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<CategoryConfig | null>(null);
+  const [detailById, setDetailById] = useState<Record<string, ParsedEmailRow>>({});
+  const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
 
-  const allEmails = useMemo(() => {
-    const merged: { email: ParsedEmailRow; categoryConfig: CategoryConfig }[] = [];
+  const ensureBucketLoaded = useCallback(async (filter: CategoryFilter) => {
+    let shouldLoad = false;
+    setBuckets((prev) => {
+      const bucket = prev[filter];
+      if (bucket.loading || bucket.loaded) return prev;
+      shouldLoad = true;
+      return {
+        ...prev,
+        [filter]: { ...bucket, loading: true, error: undefined },
+      };
+    });
+    if (!shouldLoad) return;
 
-    grants.emails.forEach((e) => merged.push({ email: e, categoryConfig: getCategoryConfig(e) }));
-    crewCalls.emails.forEach((e) => merged.push({ email: e, categoryConfig: getCategoryConfig(e) }));
-    castingCalls.emails.forEach((e) => merged.push({ email: e, categoryConfig: getCategoryConfig(e) }));
-    events.emails.forEach((e) => merged.push({ email: e, categoryConfig: getCategoryConfig(e) }));
-    resources.emails.forEach((e) => merged.push({ email: e, categoryConfig: getCategoryConfig(e) }));
+    try {
+      const emails = await fetchBucket(filter);
+      setBuckets((prev) => ({
+        ...prev,
+        [filter]: {
+          emails,
+          loading: false,
+          loaded: true,
+        },
+      }));
+    } catch (error) {
+      setBuckets((prev) => ({
+        ...prev,
+        [filter]: {
+          emails: [],
+          loading: false,
+          loaded: true,
+          error: error instanceof Error ? error.message : "Unknown error",
+        },
+      }));
+    }
+  }, []);
 
-    merged.sort((a, b) => b.email.sent_at - a.email.sent_at);
-    return merged;
-  }, [grants, crewCalls, resources, castingCalls, events]);
+  useEffect(() => {
+    void ensureBucketLoaded(activeFilter);
+  }, [activeFilter, ensureBucketLoaded]);
+
+  const activeBucket = buckets[activeFilter];
 
   const filteredEmails = useMemo(() => {
-    if (activeFilter === "ALL") return allEmails;
-    return allEmails.filter((item) => item.categoryConfig.key === activeFilter);
-  }, [allEmails, activeFilter]);
+    const source = activeBucket.emails;
+    const merged = source.map((email) => ({
+      email,
+      categoryConfig: getCategoryConfig(email),
+    }));
+    merged.sort((a, b) => b.email.sent_at - a.email.sent_at);
+    return merged;
+  }, [activeBucket.emails]);
 
-  const handleSelectEmail = (email: ParsedEmailRow, config: CategoryConfig) => {
-    setSelectedEmail(email);
+  const summaryById = useMemo(() => {
+    const map = new Map<string, ParsedEmailRow>();
+    for (const bucket of Object.values(buckets)) {
+      for (const email of bucket.emails) map.set(email.id, email);
+    }
+    return map;
+  }, [buckets]);
+
+  const selectedEmail = selectedEmailId
+    ? (detailById[selectedEmailId] ?? summaryById.get(selectedEmailId) ?? null)
+    : null;
+
+  const handleSelectEmail = useCallback(async (email: ParsedEmailRow, config: CategoryConfig) => {
+    setSelectedEmailId(email.id);
     setSelectedCategory(config);
-  };
+
+    if (detailById[email.id]) return;
+    setDetailLoadingId(email.id);
+
+    try {
+      const fullEmail = await fetchEmailById(email.id);
+      setDetailById((prev) => ({ ...prev, [email.id]: fullEmail }));
+    } catch (error) {
+      console.error("[inbox] failed to fetch full email", error);
+    } finally {
+      setDetailLoadingId((prev) => (prev === email.id ? null : prev));
+    }
+  }, [detailById]);
 
   return (
     <div className="tabbed-dashboard">
-      {/* Compact filter chips */}
       <div className="inbox-filter-tabs">
         {categories.map((cat) => {
           const isActive = activeFilter === cat.key;
-          const count =
-            cat.key === "ALL"
-              ? allEmails.length
-              : allEmails.filter((item) => item.categoryConfig.key === cat.key).length;
+          const count = buckets[cat.key].emails.length;
+          const loading = buckets[cat.key].loading;
 
           return (
             <button
@@ -97,8 +194,9 @@ export function InboxDashboard({ grants, crewCalls, resources, castingCalls, eve
               className={`inbox-filter-tab ${isActive ? "inbox-filter-tab-active" : ""}`}
               onClick={() => {
                 setActiveFilter(cat.key);
-                setSelectedEmail(null);
+                setSelectedEmailId(null);
                 setSelectedCategory(null);
+                void ensureBucketLoaded(cat.key);
               }}
               style={{ "--filter-color": cat.color } as React.CSSProperties}
             >
@@ -108,15 +206,13 @@ export function InboxDashboard({ grants, crewCalls, resources, castingCalls, eve
                 </span>
               )}
               <span className="inbox-filter-label">{cat.label}</span>
-              <span className="inbox-filter-count">{count}</span>
+              <span className="inbox-filter-count">{loading && count === 0 ? "…" : count}</span>
             </button>
           );
         })}
       </div>
 
-      {/* Main Content Area */}
       <div className="tabbed-content">
-        {/* Left Side: Inbox List */}
         <div className="list-panel">
           <div className="list-panel-header">
             <div className="list-panel-title-row">
@@ -130,7 +226,17 @@ export function InboxDashboard({ grants, crewCalls, resources, castingCalls, eve
           </div>
 
           <div className="list-panel-content">
-            {filteredEmails.length === 0 ? (
+            {activeBucket.loading && filteredEmails.length === 0 ? (
+              <div className="section-empty">
+                <div className="empty-icon">&#8635;</div>
+                <div className="empty-message">Loading messages...</div>
+              </div>
+            ) : activeBucket.error ? (
+              <div className="section-empty">
+                <div className="empty-icon">&#9888;</div>
+                <div className="empty-message">{activeBucket.error}</div>
+              </div>
+            ) : filteredEmails.length === 0 ? (
               <div className="section-empty">
                 <div className="empty-icon">&#8709;</div>
                 <div className="empty-message">No messages found</div>
@@ -138,14 +244,14 @@ export function InboxDashboard({ grants, crewCalls, resources, castingCalls, eve
             ) : (
               <div>
                 {filteredEmails.map(({ email, categoryConfig }) => {
-                  const isSelected = selectedEmail?.id === email.id;
+                  const isSelected = selectedEmailId === email.id;
                   const mediaPresent = hasMedia(email);
 
                   return (
                     <div
                       key={email.id}
                       className={`inbox-item ${isSelected ? "inbox-item-selected" : ""}`}
-                      onClick={() => handleSelectEmail(email, categoryConfig)}
+                      onClick={() => void handleSelectEmail(email, categoryConfig)}
                     >
                       <div
                         className="inbox-category-badge"
@@ -181,8 +287,12 @@ export function InboxDashboard({ grants, crewCalls, resources, castingCalls, eve
           </div>
         </div>
 
-        {/* Right Side: Detail Panel (desktop only) */}
         <div className="inbox-detail-desktop">
+          {detailLoadingId && selectedEmailId === detailLoadingId && (
+            <div style={{ padding: "var(--space-sm)", fontSize: 12, color: "var(--text-tertiary)" }}>
+              Loading full email...
+            </div>
+          )}
           <EmailDetailPanel
             email={selectedEmail}
             type={selectedCategory?.detailType ?? "grant"}
@@ -190,11 +300,10 @@ export function InboxDashboard({ grants, crewCalls, resources, castingCalls, eve
         </div>
       </div>
 
-      {/* Mobile bottom-sheet drawer */}
       {selectedEmail && (
         <div
           className="inbox-modal-overlay"
-          onClick={() => { setSelectedEmail(null); setSelectedCategory(null); }}
+          onClick={() => { setSelectedEmailId(null); setSelectedCategory(null); }}
         >
           <div
             className="inbox-modal-content"

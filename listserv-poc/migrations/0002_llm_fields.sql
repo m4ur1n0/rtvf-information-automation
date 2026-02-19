@@ -27,7 +27,7 @@ ALTER TABLE emails ADD COLUMN rsvp_url TEXT;            -- RSVP or sign-up link
 
 -- Classifier metadata
 ALTER TABLE emails ADD COLUMN llm_reasoning TEXT;       -- LLM's explanation for its classification
-ALTER TABLE emails ADD COLUMN classifier_version TEXT DEFAULT 'v1_regex';  -- v1_regex | v2_llm | v2_llm_fallback
+ALTER TABLE emails ADD COLUMN classifier_version TEXT DEFAULT 'v1_regex';  -- v1_regex | v3_gemini | v3_gemini_fallback
 
 -- Run these separately AFTER all ALTER TABLE statements above have been applied:
 -- CREATE INDEX IF NOT EXISTS idx_emails_deadline_at ON emails(deadline_at);

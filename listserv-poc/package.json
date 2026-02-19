@@ -1,3 +1,13 @@
 {
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "cf:login": "wrangler login",
+    "cf:whoami": "wrangler whoami",
+    "cf:dev": "wrangler dev",
+    "cf:deploy": "wrangler deploy",
+    "d1:list": "wrangler d1 list"
+  },
+  "devDependencies": {
+    "wrangler": "^4.67.0"
+  }
 }

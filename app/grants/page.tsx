@@ -1,9 +1,9 @@
-import { fetchEmails, type ParsedEmailRow } from "@/lib/api";
+import { fetchGrants, type ParsedEmailRow } from "@/lib/api";
 import { GrantsDashboard } from "@/components/GrantsDashboard";
 
 async function fetchGrantsData(): Promise<{ emails: ParsedEmailRow[]; error?: string }> {
   try {
-    const emails = await fetchEmails({ category: "GRANT", limit: 50 });
+    const emails = await fetchGrants({ limit: 50 });
     return { emails };
   } catch (error) {
     return { emails: [], error: error instanceof Error ? error.message : "Unknown error" };

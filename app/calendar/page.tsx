@@ -1,4 +1,9 @@
-import { fetchEmails, type ParsedEmailRow } from "@/lib/api";
+import {
+  fetchEvents,
+  fetchGrants,
+  fetchPetitions,
+  type ParsedEmailRow,
+} from "@/lib/api";
 import { CalendarDashboard } from "@/components/CalendarDashboard";
 
 async function fetchDeadlineEmails(): Promise<{
@@ -7,9 +12,9 @@ async function fetchDeadlineEmails(): Promise<{
   crewEmails:   ParsedEmailRow[];
 }> {
   const [grantEmails, eventEmails, crewEmails] = await Promise.all([
-    fetchEmails({ category: "GRANT",     limit: 50 }).catch(() => []),
-    fetchEmails({ category: "EVENT",     limit: 50 }).catch(() => []),
-    fetchEmails({ category: "CREW_CALL", limit: 50 }).catch(() => []),
+    fetchGrants({ limit: 50 }).catch(() => []),
+    fetchEvents({ limit: 50 }).catch(() => []),
+    fetchPetitions({ limit: 50 }).catch(() => []),
   ]);
   return { grantEmails, eventEmails, crewEmails };
 }
