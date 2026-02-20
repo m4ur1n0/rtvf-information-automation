@@ -6,10 +6,17 @@ import { formatSentDate } from "@/lib/format";
 
 interface EmailDetailPanelProps {
   email: ParsedEmailRow | null;
-  type: "grant" | "crew" | "casting" | "resource" | "event";
+  type: "grant" | "crew" | "casting" | "resource" | "event" | "petition";
+  showStatus?: boolean;
+  showTags?: boolean;
 }
 
-export function EmailDetailPanel({ email, type }: EmailDetailPanelProps) {
+export function EmailDetailPanel({
+  email,
+  type,
+  showStatus = true,
+  showTags = true,
+}: EmailDetailPanelProps) {
   const [bodyMode, setBodyMode] = useState<"html" | "text">("html");
   const [iframeHeight, setIframeHeight] = useState(400);
 
@@ -45,6 +52,9 @@ export function EmailDetailPanel({ email, type }: EmailDetailPanelProps) {
     }
     if (type === "crew") {
       return { label: "Crew Call", color: "status-open" };
+    }
+    if (type === "petition") {
+      return { label: "Petition", color: "status-open" };
     }
     if (type === "casting") {
       return {
@@ -339,11 +349,15 @@ export function EmailDetailPanel({ email, type }: EmailDetailPanelProps) {
     <div className="detail-panel">
       {/* ── Header ── */}
       <div className="detail-panel-header">
-        <div className="detail-panel-status">
-          <span className={`status-dot ${status.color}`} />
-          <span className={`status-badge ${status.color}`}>{status.label}</span>
-          {email.is_bump === 1 && <span className="bump-badge">BUMP</span>}
-        </div>
+        {showStatus ? (
+          <div className="detail-panel-status">
+            <span className={`status-dot ${status.color}`} />
+            <span className={`status-badge ${status.color}`}>{status.label}</span>
+            {email.is_bump === 1 && <span className="bump-badge">BUMP</span>}
+          </div>
+        ) : (
+          <div />
+        )}
         <div className="detail-panel-date">{formatSentDate(email.sent_at)}</div>
       </div>
 
@@ -371,7 +385,7 @@ export function EmailDetailPanel({ email, type }: EmailDetailPanelProps) {
         )}
 
         {/* Tags */}
-        {email.tags.length > 0 && (
+        {showTags && email.tags.length > 0 && (
           <div className="detail-section">
             <div className="detail-section-label">Tags</div>
             <div className="tag-list">

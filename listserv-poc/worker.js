@@ -531,6 +531,8 @@ export default {
 async function ingestOneMessage(env, m) {
     const threadKey = makeThreadKey(m.subject);
     const createdAt = nowSec();
+    const normalizedSender = normalizeSenderFields(m.fromEmail, m.fromName);
+    const normalizedReplyTo = normalizeEmailAddress(m.replyTo);
 
     const id = await (m.providerMessageId
         ? sha256Hex(m.providerMessageId)
@@ -624,6 +626,12 @@ async function ingestOneMessage(env, m) {
         rsvp_url = null;
     }
 
+    // If the model misses roles, infer them from subject/body text so role filters still work.
+    roles_mentioned = normalizeRoles(roles_mentioned);
+    if (!roles_mentioned || roles_mentioned.length === 0) {
+        roles_mentioned = inferRolesFromText(m.subject, m.bodyText, tags);
+    }
+
     // ── Bump detection (LLM or heuristic) ────────────────────────────────
 
     const heuristicBump = detectBump(m.subject, m.bodyText);
@@ -706,9 +714,9 @@ async function ingestOneMessage(env, m) {
         m.providerMessageId,
         m.source,
         m.listserv,
-        m.fromEmail,
-        m.fromName,
-        m.replyTo,
+        normalizedSender.fromEmail,
+        normalizedSender.fromName,
+        normalizedReplyTo,
         null,
         m.subject,
         m.bodyText || "",
@@ -851,6 +859,47 @@ function pick(row, keys) {
         if (typeof v === "string" && v.trim() !== "") return v;
     }
     return null;
+}
+
+function splitMailbox(value) {
+    const raw = typeof value === "string" ? value.trim() : "";
+    if (!raw) return { name: null, email: null };
+
+    const match = raw.match(/^\s*"?([^"<]*)"?\s*<\s*([^>]+)\s*>\s*$/);
+    if (match) {
+        const name = match[1].trim().replace(/^"|"$/g, "");
+        const email = match[2].trim();
+        return { name: name || null, email: email || null };
+    }
+
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw)) {
+        return { name: null, email: raw };
+    }
+
+    return { name: raw, email: null };
+}
+
+function normalizeEmailAddress(value) {
+    const parsed = splitMailbox(value);
+    if (parsed.email) return parsed.email;
+    if (typeof value !== "string") return null;
+    const trimmed = value.trim();
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed) ? trimmed : null;
+}
+
+function normalizeSenderFields(fromEmailRaw, fromNameRaw) {
+    const parsedEmail = splitMailbox(fromEmailRaw);
+    const parsedName = splitMailbox(fromNameRaw);
+
+    const fromEmail = parsedEmail.email || parsedName.email || null;
+
+    const explicitName =
+        typeof fromNameRaw === "string" && fromNameRaw.trim() !== "" && !parsedName.email
+            ? fromNameRaw.trim()
+            : null;
+    const fromName = explicitName || parsedEmail.name || parsedName.name || null;
+
+    return { fromEmail, fromName };
 }
 
 function parseSentAtToEpochSeconds(v) {
@@ -1332,6 +1381,37 @@ async function writeEmailRelations(env, emailId, payload) {
             `INSERT OR REPLACE INTO email_recipients (email_id, position, recipient_email) VALUES (?1, ?2, ?3)`
         ).bind(emailId, i, toEmails[i]).run();
     }
+}
+
+
+function normalizeRoles(values) {
+    const roles = uniqueStrings(values);
+    return roles.length > 0 ? roles : null;
+}
+
+function inferRolesFromText(subject, bodyText, tags) {
+    const text = `${String(subject ?? "")}
+${String(bodyText ?? "")}`;
+    const lower = text.toLowerCase();
+    const out = [];
+
+    const addIf = (label, re) => {
+        if (re.test(lower)) out.push(label);
+    };
+
+    addIf("DP", /\bdp\b|director of photography|cinematograph/);
+    addIf("Sound", /sound designer|sound mixer|\bboom\b|production sound/);
+    addIf("Editor", /\beditor\b|editing/);
+    addIf("Gaffer/Grip", /\bgaffer\b|\bgrip\b/);
+    addIf("Producer", /\bproducer\b|production manager|line producer|\bupm\b/);
+    addIf("AD", /assistant director|\b1st ad\b|\b2nd ad\b/);
+    addIf("PA", /\bpa\b|production assistant/);
+
+    const tagSet = new Set(Array.isArray(tags) ? tags : []);
+    if (tagSet.has("CASTING_EXTRAS")) out.push("Extras");
+    if (tagSet.has("CASTING_ROLES")) out.push("Actor");
+
+    return normalizeRoles(out);
 }
 
 function uniqueStrings(values) {
