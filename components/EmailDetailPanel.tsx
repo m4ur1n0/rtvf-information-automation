@@ -174,7 +174,7 @@ export function EmailDetailPanel({
   // ── Category-specific metadata sections ────────────────────────────────
 
   const renderCrewMeta = () => {
-    if (type !== "crew" && type !== "casting") return null;
+    if (type !== "crew" && type !== "casting" && type !== "petition") return null;
     const hasAny =
       email.film_title || email.logline || email.production_type ||
       (type === "casting" && email.director_name) ||
@@ -198,7 +198,7 @@ export function EmailDetailPanel({
               <span className="detail-meta-val">{email.production_type}</span>
             </div>
           )}
-          {type === "casting" && email.director_name && (
+          {(type === "casting" || type === "petition") && email.director_name && (
             <div className="detail-meta-row">
               <span className="detail-meta-key">Director</span>
               <span className="detail-meta-val">{email.director_name}</span>

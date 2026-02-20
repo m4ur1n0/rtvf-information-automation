@@ -378,9 +378,9 @@ export function GrantsDashboard({
       </div>
 
       {/* Main layout */}
-      <div className="grants-layout" style={{ display: "grid", gap: "var(--space-lg)", alignItems: "start" }}>
+      <div className="grants-layout">
         {/* Left: grouped grant list */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-xl)" }}>
+        <div className="grants-list-main" style={{ display: "flex", flexDirection: "column", gap: "var(--space-xl)" }}>
           {STATUS_SECTIONS.map(({ key, heading }) => {
             const group = grouped[key];
             if (group.length === 0) return null;

@@ -16,17 +16,33 @@ interface StatusConfig {
 }
 
 const STATUS_MAP: Record<PetitionStatus, StatusConfig> = {
-  "active":        { label: "Active",        color: "var(--accent-casting)",  badgeClass: "status-active" },
-  "deadline-soon": { label: "Deadline Soon", color: "var(--accent-resource)", badgeClass: "status-deadline-soon" },
-  "past":          { label: "Past Deadline", color: "var(--text-muted)",      badgeClass: "status-past" },
-  "unclear":       { label: "No Deadline",   color: "var(--text-tertiary)",   badgeClass: "status-unclear" },
+  active: {
+    label: "Active",
+    color: "var(--accent-casting)",
+    badgeClass: "status-active",
+  },
+  "deadline-soon": {
+    label: "Deadline Soon",
+    color: "var(--accent-resource)",
+    badgeClass: "status-deadline-soon",
+  },
+  past: {
+    label: "Past Deadline",
+    color: "var(--text-muted)",
+    badgeClass: "status-past",
+  },
+  unclear: {
+    label: "No Deadline",
+    color: "var(--text-tertiary)",
+    badgeClass: "status-unclear",
+  },
 };
 
 const STATUS_SECTIONS: { key: PetitionStatus; heading: string }[] = [
-  { key: "active",        heading: "Active Petitions" },
+  { key: "active", heading: "Active Petitions" },
   { key: "deadline-soon", heading: "Deadline Soon" },
-  { key: "unclear",       heading: "No Deadline Listed" },
-  { key: "past",          heading: "Past Deadline" },
+  { key: "unclear", heading: "No Deadline Listed" },
+  { key: "past", heading: "Past Deadline" },
 ];
 
 // ── Utility functions ────────────────────────────────────────────────────────
@@ -101,10 +117,15 @@ function extractApplicationLink(email: ParsedEmailRow): string | null {
     ...extractUrlsFromText(email.body_text ?? ""),
   ]);
   if (candidates.length === 0) return null;
-  return [...candidates].sort((a, b) => scoreApplicationLink(b) - scoreApplicationLink(a))[0];
+  return [...candidates].sort(
+    (a, b) => scoreApplicationLink(b) - scoreApplicationLink(a),
+  )[0];
 }
 
-function parseMailbox(raw: string | null | undefined): { name: string | null; email: string | null } {
+function parseMailbox(raw: string | null | undefined): {
+  name: string | null;
+  email: string | null;
+} {
   if (!raw) return { name: null, email: null };
   const trimmed = raw.trim();
   if (!trimmed) return { name: null, email: null };
@@ -120,11 +141,16 @@ function parseMailbox(raw: string | null | undefined): { name: string | null; em
   return { name: trimmed, email: null };
 }
 
-function resolveContact(email: ParsedEmailRow): { name: string | null; email: string | null } {
+function resolveContact(email: ParsedEmailRow): {
+  name: string | null;
+  email: string | null;
+} {
   const fromEmailParsed = parseMailbox(email.from_email);
   const fromNameParsed = parseMailbox(email.from_name);
   const name =
-    (email.from_name && !fromNameParsed.email ? email.from_name.trim() : null) ||
+    (email.from_name && !fromNameParsed.email
+      ? email.from_name.trim()
+      : null) ||
     fromEmailParsed.name ||
     fromNameParsed.name ||
     null;
@@ -141,7 +167,8 @@ function resolveStatus(email: ParsedEmailRow): PetitionStatus {
   if (isPast(deadline)) return "past";
 
   const soon = addDays(now, 7);
-  if (isWithinInterval(deadline, { start: now, end: soon })) return "deadline-soon";
+  if (isWithinInterval(deadline, { start: now, end: soon }))
+    return "deadline-soon";
 
   return "active";
 }
@@ -155,12 +182,17 @@ function formatDeadline(deadlineAt: number | null): string | null {
   });
 }
 
-function buildCalUrl(email: ParsedEmailRow, contactEmail: string | null): string | null {
+function buildCalUrl(
+  email: ParsedEmailRow,
+  contactEmail: string | null,
+): string | null {
   if (!email.deadline_at) return null;
   const deadlineDate = new Date(email.deadline_at * 1000);
   const startDate = format(deadlineDate, "yyyyMMdd");
   const endDate = format(addDays(deadlineDate, 1), "yyyyMMdd");
-  const title = encodeURIComponent(email.film_title || email.subject || "Petition Deadline");
+  const title = encodeURIComponent(
+    email.film_title || email.subject || "Petition Deadline",
+  );
   const details = encodeURIComponent(
     [
       email.logline ?? "",
@@ -168,7 +200,7 @@ function buildCalUrl(email: ParsedEmailRow, contactEmail: string | null): string
       contactEmail ? `Contact: ${contactEmail}` : "",
     ]
       .filter(Boolean)
-      .join("\n")
+      .join("\n"),
   );
   return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startDate}/${endDate}&details=${details}`;
 }
@@ -184,7 +216,14 @@ interface PetitionCardProps {
   onSelect: () => void;
 }
 
-function PetitionCard({ email, roles, applicationUrl, calendarUrl, isSelected, onSelect }: PetitionCardProps) {
+function PetitionCard({
+  email,
+  roles,
+  applicationUrl,
+  calendarUrl,
+  isSelected,
+  onSelect,
+}: PetitionCardProps) {
   const status = resolveStatus(email);
   const config = STATUS_MAP[status];
   const deadline = formatDeadline(email.deadline_at);
@@ -229,8 +268,17 @@ function PetitionCard({ email, roles, applicationUrl, calendarUrl, isSelected, o
         }}
       >
         {/* Header row: status dot + title + chevron */}
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-md)" }}>
-          <span className={`status-dot ${config.badgeClass}`} style={{ flexShrink: 0 }} />
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "var(--space-md)",
+          }}
+        >
+          <span
+            className={`status-dot ${config.badgeClass}`}
+            style={{ flexShrink: 0 }}
+          />
 
           <div style={{ flex: 1, minWidth: 0 }}>
             <div
@@ -247,14 +295,79 @@ function PetitionCard({ email, roles, applicationUrl, calendarUrl, isSelected, o
             </div>
           </div>
 
-          <span style={{ color: "var(--text-tertiary)", fontSize: "14px", flexShrink: 0 }}>
+          <span
+            style={{
+              color: "var(--text-tertiary)",
+              fontSize: "14px",
+              flexShrink: 0,
+            }}
+          >
             {isSelected ? "‹" : "›"}
           </span>
         </div>
 
+        {/* Logline */}
+        {email.logline && (
+          <p
+            style={{
+              margin: 0,
+              fontSize: "12px",
+              color: "var(--text-secondary)",
+              lineHeight: 1.5,
+              overflow: "hidden",
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+            }}
+          >
+            {email.logline}
+          </p>
+        )}
+
+        {/* Production type, shoot dates, location */}
+        {(email.production_type ||
+          email.shoot_dates_text ||
+          email.petition_location) && (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "2px",
+              fontSize: "11px",
+              color: "var(--text-muted)",
+            }}
+          >
+            {email.production_type && (
+              <div>
+                <span style={{ fontWeight: 600 }}>Program:</span>{" "}
+                {email.production_type}
+              </div>
+            )}
+            {email.shoot_dates_text && (
+              <div>
+                <span style={{ fontWeight: 600 }}>Shoot:</span>{" "}
+                {email.shoot_dates_text}
+              </div>
+            )}
+            {email.petition_location && (
+              <div>
+                <span style={{ fontWeight: 600 }}>Apply:</span>{" "}
+                {email.petition_location}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Roles badges */}
         {roles.length > 0 && (
-          <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", marginTop: "2px" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: "4px",
+              flexWrap: "wrap",
+              marginTop: "2px",
+            }}
+          >
             {roles.slice(0, 4).map((role) => (
               <span
                 key={role}
@@ -265,9 +378,11 @@ function PetitionCard({ email, roles, applicationUrl, calendarUrl, isSelected, o
                   letterSpacing: "0.03em",
                   padding: "2px 6px",
                   borderRadius: "3px",
-                  background: "color-mix(in oklab, var(--accent-casting) 20%, var(--bg-secondary))",
+                  background:
+                    "color-mix(in oklab, var(--accent-casting) 20%, var(--bg-secondary))",
                   color: "var(--accent-casting)",
-                  border: "1px solid color-mix(in oklab, var(--accent-casting) 30%, transparent)",
+                  border:
+                    "1px solid color-mix(in oklab, var(--accent-casting) 30%, transparent)",
                 }}
               >
                 {role}
@@ -298,7 +413,15 @@ function PetitionCard({ email, roles, applicationUrl, calendarUrl, isSelected, o
             marginTop: "4px",
           }}
         >
-          <div style={{ display: "flex", alignItems: "baseline", gap: "var(--space-md)", flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              gap: "var(--space-md)",
+              flex: 1,
+              minWidth: 0,
+            }}
+          >
             <div
               style={{
                 fontSize: "11px",
@@ -308,7 +431,9 @@ function PetitionCard({ email, roles, applicationUrl, calendarUrl, isSelected, o
                 whiteSpace: "nowrap",
               }}
             >
-              {email.director_name ? `Dir: ${email.director_name}` : contact.name || contact.email || ""}
+              {email.director_name
+                ? `Director: ${email.director_name}`
+                : contact.name || contact.email || ""}
             </div>
 
             {deadline && (
@@ -395,7 +520,14 @@ function PetitionCard({ email, roles, applicationUrl, calendarUrl, isSelected, o
 
 function ResourcesSidebar() {
   return (
-    <aside className="grants-detail-panel" style={{ display: "flex", flexDirection: "column", gap: "var(--space-md)" }}>
+    <aside
+      className="grants-detail-panel"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "var(--space-md)",
+      }}
+    >
       <div
         style={{
           background: "var(--bg-secondary)",
@@ -416,12 +548,20 @@ function ResourcesSidebar() {
         >
           How Petitions Work
         </h3>
-        <div style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.6 }}>
+        <div
+          style={{
+            fontSize: "12px",
+            color: "var(--text-secondary)",
+            lineHeight: 1.6,
+          }}
+        >
           <p style={{ marginBottom: "var(--space-sm)" }}>
-            Click any petition to see full details, application links, and contact information.
+            Click any petition to see full details, application links, and
+            contact information.
           </p>
           <p>
-            Petitions are crew calls for student film projects. Apply early for the best opportunities.
+            Petitions are crew calls for student film projects. Apply early for
+            the best opportunities.
           </p>
         </div>
       </div>
@@ -446,7 +586,14 @@ function ResourcesSidebar() {
         >
           Role Glossary
         </h3>
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-sm)", fontSize: "12px" }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--space-sm)",
+            fontSize: "12px",
+          }}
+        >
           {[
             { role: "DP", desc: "Director of Photography" },
             { role: "AD", desc: "Assistant Director" },
@@ -454,7 +601,9 @@ function ResourcesSidebar() {
             { role: "Sound", desc: "Sound Designer/Mixer" },
           ].map((item) => (
             <div key={item.role}>
-              <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{item.role}</span>
+              <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>
+                {item.role}
+              </span>
               <span style={{ color: "var(--text-muted)" }}> — {item.desc}</span>
             </div>
           ))}
@@ -466,7 +615,13 @@ function ResourcesSidebar() {
 
 // ── Main dashboard component ──────────────────────────────────────────────────
 
-export function PetitionsDashboard({ emails, error }: { emails: ParsedEmailRow[]; error?: string }) {
+export function PetitionsDashboard({
+  emails,
+  error,
+}: {
+  emails: ParsedEmailRow[];
+  error?: string;
+}) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [roleFilter, setRoleFilter] = useState<string>("all");
@@ -489,7 +644,7 @@ export function PetitionsDashboard({ emails, error }: { emails: ParsedEmailRow[]
 
   const selectedPetition = useMemo(
     () => petitionsWithMeta.find((p) => p.email.id === selectedId) ?? null,
-    [petitionsWithMeta, selectedId]
+    [petitionsWithMeta, selectedId],
   );
 
   const allRoles = useMemo(() => {
@@ -509,7 +664,9 @@ export function PetitionsDashboard({ emails, error }: { emails: ParsedEmailRow[]
 
     if (roleFilter !== "all") {
       const normalized = roleFilter.toLowerCase();
-      result = result.filter((p) => p.roles.some((r) => r.toLowerCase() === normalized));
+      result = result.filter((p) =>
+        p.roles.some((r) => r.toLowerCase() === normalized),
+      );
     }
 
     return result.sort((a, b) => b.email.sent_at - a.email.sent_at);
@@ -529,7 +686,9 @@ export function PetitionsDashboard({ emails, error }: { emails: ParsedEmailRow[]
   const counts: Record<StatusFilter, number> = {
     all: petitionsWithMeta.length,
     active: petitionsWithMeta.filter((p) => p.status === "active").length,
-    "deadline-soon": petitionsWithMeta.filter((p) => p.status === "deadline-soon").length,
+    "deadline-soon": petitionsWithMeta.filter(
+      (p) => p.status === "deadline-soon",
+    ).length,
     past: petitionsWithMeta.filter((p) => p.status === "past").length,
   };
 
@@ -543,7 +702,8 @@ export function PetitionsDashboard({ emails, error }: { emails: ParsedEmailRow[]
         <div
           style={{
             padding: "var(--space-md) var(--space-lg)",
-            background: "color-mix(in srgb, var(--status-closed) 12%, transparent)",
+            background:
+              "color-mix(in srgb, var(--status-closed) 12%, transparent)",
             border: "1px solid var(--status-closed)",
             borderRadius: "var(--radius-md)",
             color: "var(--status-closed)",
@@ -556,7 +716,14 @@ export function PetitionsDashboard({ emails, error }: { emails: ParsedEmailRow[]
       )}
 
       {/* Filter bars */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-md)", marginBottom: "var(--space-lg)" }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "var(--space-md)",
+          marginBottom: "var(--space-lg)",
+        }}
+      >
         {/* Status filter */}
         <div
           style={{
@@ -581,31 +748,39 @@ export function PetitionsDashboard({ emails, error }: { emails: ParsedEmailRow[]
           >
             Status:
           </label>
-          {(["all", "active", "deadline-soon", "past"] as StatusFilter[]).map((f) => {
-            const active = statusFilter === f;
-            const color = f === "all" ? "var(--accent-casting)" : STATUS_MAP[f as PetitionStatus].color;
-            return (
-              <button
-                key={f}
-                onClick={() => setStatusFilter(f)}
-                style={{
-                  padding: "4px 12px",
-                  fontSize: "12px",
-                  fontFamily: "var(--font-mono)",
-                  borderRadius: "9999px",
-                  border: `1px solid ${active ? color : "var(--border-default)"}`,
-                  background: active ? color : "var(--bg-tertiary)",
-                  color: active ? "var(--bg-primary)" : "var(--text-secondary)",
-                  cursor: "pointer",
-                  transition: "all 0.15s ease",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.03em",
-                }}
-              >
-                {f === "all" ? "All" : STATUS_MAP[f as PetitionStatus].label} <span style={{ opacity: 0.7 }}>({counts[f]})</span>
-              </button>
-            );
-          })}
+          {(["all", "active", "deadline-soon", "past"] as StatusFilter[]).map(
+            (f) => {
+              const active = statusFilter === f;
+              const color =
+                f === "all"
+                  ? "var(--accent-casting)"
+                  : STATUS_MAP[f as PetitionStatus].color;
+              return (
+                <button
+                  key={f}
+                  onClick={() => setStatusFilter(f)}
+                  style={{
+                    padding: "4px 12px",
+                    fontSize: "12px",
+                    fontFamily: "var(--font-mono)",
+                    borderRadius: "9999px",
+                    border: `1px solid ${active ? color : "var(--border-default)"}`,
+                    background: active ? color : "var(--bg-tertiary)",
+                    color: active
+                      ? "var(--bg-primary)"
+                      : "var(--text-secondary)",
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.03em",
+                  }}
+                >
+                  {f === "all" ? "All" : STATUS_MAP[f as PetitionStatus].label}{" "}
+                  <span style={{ opacity: 0.7 }}>({counts[f]})</span>
+                </button>
+              );
+            },
+          )}
         </div>
 
         {/* Role filter */}
@@ -641,8 +816,14 @@ export function PetitionsDashboard({ emails, error }: { emails: ParsedEmailRow[]
                 fontFamily: "var(--font-mono)",
                 borderRadius: "9999px",
                 border: `1px solid ${roleFilter === "all" ? "var(--accent-casting)" : "var(--border-default)"}`,
-                background: roleFilter === "all" ? "var(--accent-casting)" : "var(--bg-tertiary)",
-                color: roleFilter === "all" ? "var(--bg-primary)" : "var(--text-secondary)",
+                background:
+                  roleFilter === "all"
+                    ? "var(--accent-casting)"
+                    : "var(--bg-tertiary)",
+                color:
+                  roleFilter === "all"
+                    ? "var(--bg-primary)"
+                    : "var(--text-secondary)",
                 cursor: "pointer",
                 transition: "all 0.15s ease",
                 textTransform: "uppercase",
@@ -663,8 +844,12 @@ export function PetitionsDashboard({ emails, error }: { emails: ParsedEmailRow[]
                     fontFamily: "var(--font-mono)",
                     borderRadius: "9999px",
                     border: `1px solid ${active ? "var(--accent-casting)" : "var(--border-default)"}`,
-                    background: active ? "var(--accent-casting)" : "var(--bg-tertiary)",
-                    color: active ? "var(--bg-primary)" : "var(--text-secondary)",
+                    background: active
+                      ? "var(--accent-casting)"
+                      : "var(--bg-tertiary)",
+                    color: active
+                      ? "var(--bg-primary)"
+                      : "var(--text-secondary)",
                     cursor: "pointer",
                     transition: "all 0.15s ease",
                   }}
@@ -678,9 +863,16 @@ export function PetitionsDashboard({ emails, error }: { emails: ParsedEmailRow[]
       </div>
 
       {/* Main layout */}
-      <div className="grants-layout" style={{ display: "grid", gap: "var(--space-lg)", alignItems: "start" }}>
+      <div className="grants-layout">
         {/* Left: grouped petition list */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-xl)" }}>
+        <div
+          className="grants-list-main"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--space-xl)",
+          }}
+        >
           {STATUS_SECTIONS.map(({ key, heading }) => {
             const group = grouped[key];
             if (group.length === 0) return null;
@@ -709,11 +901,23 @@ export function PetitionsDashboard({ emails, error }: { emails: ParsedEmailRow[]
                   >
                     {heading}
                   </h2>
-                  <span style={{ fontSize: "12px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      color: "var(--text-muted)",
+                      fontFamily: "var(--font-mono)",
+                    }}
+                  >
                     {group.length}
                   </span>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-sm)" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "var(--space-sm)",
+                  }}
+                >
                   {group.map((petition) => (
                     <PetitionCard
                       key={petition.email.id}
@@ -740,7 +944,15 @@ export function PetitionsDashboard({ emails, error }: { emails: ParsedEmailRow[]
                 textAlign: "center",
               }}
             >
-              <div style={{ fontSize: "48px", opacity: 0.3, marginBottom: "var(--space-md)" }}>∅</div>
+              <div
+                style={{
+                  fontSize: "48px",
+                  opacity: 0.3,
+                  marginBottom: "var(--space-md)",
+                }}
+              >
+                ∅
+              </div>
               <div
                 style={{
                   fontSize: "13px",
@@ -759,7 +971,10 @@ export function PetitionsDashboard({ emails, error }: { emails: ParsedEmailRow[]
         <div className="grants-sidebar-desktop">
           {selectedPetition ? (
             <div className="grants-detail-panel">
-              <EmailDetailPanel email={selectedPetition.email} type="petition" />
+              <EmailDetailPanel
+                email={selectedPetition.email}
+                type="petition"
+              />
             </div>
           ) : (
             <ResourcesSidebar />
@@ -769,8 +984,14 @@ export function PetitionsDashboard({ emails, error }: { emails: ParsedEmailRow[]
 
       {/* Mobile bottom-sheet drawer */}
       {selectedPetition && (
-        <div className="grants-modal-overlay" onClick={() => setSelectedId(null)}>
-          <div className="grants-modal-content" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="grants-modal-overlay"
+          onClick={() => setSelectedId(null)}
+        >
+          <div
+            className="grants-modal-content"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div
               style={{
                 width: "40px",
