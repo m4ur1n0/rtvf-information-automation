@@ -22,9 +22,6 @@ export type Tag =
   | "SCOPE_TRAVEL"
 
   // Crew call tags
-  | "PAID"
-  | "UNPAID"
-  | "PAY_UNCLEAR"
   | "CASTING_EXTRAS"
   | "CASTING_ROLES"
   | "CREW_DP"
@@ -93,7 +90,6 @@ export type ParsedEmail = {
     datesMentioned?: { text: string; iso?: string }[];
     contacts?: { type: "email" | "phone" | "url"; value: string }[];
     rolesMentioned?: string[];  // e.g., ["DP","Sound"]
-    pay?: "paid" | "unpaid" | "unclear";
     grantStatus?: "open" | "upcoming" | "closed" | "unclear";
   };
 };

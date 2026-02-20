@@ -62,8 +62,6 @@ export function TabbedDashboard({ grants, crewCalls, resources, castingCalls, ev
   const getStatusCount = () => {
     if (selectedTopic === "grants") {
       return currentData.emails.filter(e => e.tags.includes("GRANT_OPEN")).length;
-    } else if (selectedTopic === "crewCalls") {
-      return currentData.emails.filter(e => e.tags.includes("PAID")).length;
     }
     return 0;
   };
@@ -84,13 +82,7 @@ export function TabbedDashboard({ grants, crewCalls, resources, castingCalls, ev
     }
 
     if (type === "crew") {
-      if (email.tags.includes("PAID")) {
-        return { label: "Paid", color: "status-open" };
-      } else if (email.tags.includes("UNPAID")) {
-        return { label: "Unpaid", color: "status-unclear" };
-      } else {
-        return { label: "Pay Unclear", color: "status-upcoming" };
-      }
+      return { label: "Crew Call", color: "status-open" };
     }
 
     if (type === "casting") {
@@ -166,12 +158,6 @@ export function TabbedDashboard({ grants, crewCalls, resources, castingCalls, ev
               <div className="list-panel-metric">
                 <span className="metric-value">{statusCount}</span>
                 <span className="metric-label">open</span>
-              </div>
-            )}
-            {selectedTopic === "crewCalls" && statusCount > 0 && (
-              <div className="list-panel-metric">
-                <span className="metric-value">{statusCount}</span>
-                <span className="metric-label">paid</span>
               </div>
             )}
           </div>

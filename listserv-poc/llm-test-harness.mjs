@@ -367,8 +367,6 @@ async function main() {
       process.stdout.write(
         `  ${dim("Petition:")}  ${result.petition_location}\n`,
       );
-    if (result.pay)
-      process.stdout.write(`  ${dim("Pay:")}       ${result.pay}\n`);
     if (result.grant_amount)
       process.stdout.write(`  ${dim("Amount:")}    ${result.grant_amount}\n`);
     if (result.grant_status)

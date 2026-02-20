@@ -9,3 +9,8 @@ binding = "DATABASE_BINDING"
 database_name = "listserv-poc"
 database_id = "9968af9d-4b8f-47e6-8eaf-4159943421c3"
 migrations_dir = "migrations"
+
+[observability]
+[observability.logs]
+enabled = true
+invocation_logs = true

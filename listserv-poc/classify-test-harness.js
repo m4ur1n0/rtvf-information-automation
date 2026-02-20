@@ -152,17 +152,6 @@ function finalize(category, tags, reasons, combined, deadlines, datesMentioned, 
             if (hasAny(combined, ["extras"])) tags.add("CASTING_EXTRAS");
         }
 
-        const hasPaidSignals = hasAny(combined, ["paid", "$", "compensation", "wage", "salary"]);
-        const hasUnpaidSignals = hasAny(combined, ["unpaid", "volunteer", "no pay", "for experience"]);
-
-        if (hasPaidSignals && !hasUnpaidSignals) {
-            tags.add("PAID");
-        } else if (hasUnpaidSignals && !hasPaidSignals) {
-            tags.add("UNPAID");
-        } else {
-            tags.add("PAY_UNCLEAR");
-        }
-
         if (contacts.length > 0) {
             tags.add("HAS_CONTACT_INFO");
         }

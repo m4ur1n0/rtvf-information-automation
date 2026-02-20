@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Script from "next/script";
 import { addDays, format } from "date-fns";
 
 interface TimeSlot {
@@ -18,6 +19,8 @@ interface Petition {
   description: string;
   deadline: string;
   location: string;
+  directorName?: string;
+  calendlyUrl?: string;
   contactName: string;
   contactEmail: string;
   scriptLink?: string;
@@ -42,6 +45,8 @@ const MOCK_PETITIONS: Petition[] = [
       "Art in Action brings together multiple artistic mediums—like music, spoken word, visual art, dance, and film—around a unifying theme. This event will take place Week 6 of Winter Quarter.",
     deadline: "2026-02-19T23:59:00",
     location: "Shake Smart, Norris Center",
+    directorName: "Kate Moore",
+    calendlyUrl: "https://calendly.com/shreyasaini2027-u/meethi-petition",
     contactName: "Kate Moore",
     contactEmail: "katemoores2028@u.northwestern.edu",
     posterImage: "/placeholder-poster.jpg",
@@ -279,8 +284,25 @@ export default function PetitionsPage() {
 
   const filteredPetitions = MOCK_PETITIONS;
 
+  const openCalendlyPopup = (url: string) => {
+    const calendly = (window as Window & { Calendly?: { initPopupWidget?: (opts: { url: string }) => void } }).Calendly;
+    if (calendly?.initPopupWidget) {
+      calendly.initPopupWidget({ url });
+      return;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
   return (
     <div className="dashboard-container" style={{ paddingTop: 0 }}>
+      <link
+        href="https://assets.calendly.com/assets/external/widget.css"
+        rel="stylesheet"
+      />
+      <Script
+        src="https://assets.calendly.com/assets/external/widget.js"
+        strategy="afterInteractive"
+      />
       <header className="dashboard-header" style={{ marginTop: 0 }}>
         <div className="header-content">
           <div className="header-top">
@@ -508,6 +530,24 @@ export default function PetitionsPage() {
                     flexShrink: 0,
                   }}
                 >
+                  {petition.id === 1 && petition.calendlyUrl && (
+                    <button
+                      onClick={() => openCalendlyPopup(petition.calendlyUrl!)}
+                      style={{
+                        padding: "var(--space-sm) var(--space-lg)",
+                        background: "var(--accent-casting)",
+                        border: "1px solid var(--accent-casting)",
+                        borderRadius: "var(--radius-sm)",
+                        color: "var(--bg-primary)",
+                        cursor: "pointer",
+                        fontSize: "14px",
+                        fontWeight: 600,
+                        transition: "all 0.2s ease",
+                      }}
+                    >
+                      Schedule Time
+                    </button>
+                  )}
                   <a
                     href={generateGoogleCalendarUrl(petition)}
                     target="_blank"
@@ -685,6 +725,22 @@ export default function PetitionsPage() {
                     Choose an available time slot for:{" "}
                     <strong>{selectedPetition.title}</strong>
                   </p>
+                  {selectedPetition.directorName && (
+                    <div
+                      style={{
+                        background: "var(--bg-tertiary)",
+                        padding: "var(--space-sm) var(--space-md)",
+                        borderRadius: "var(--radius-sm)",
+                        border: "1px solid var(--border-subtle)",
+                        marginBottom: "var(--space-lg)",
+                        fontSize: "13px",
+                        color: "var(--text-secondary)",
+                      }}
+                    >
+                      <strong style={{ color: "var(--text-primary)" }}>Director:</strong>{" "}
+                      {selectedPetition.directorName}
+                    </div>
+                  )}
 
                   {Object.entries(groupedSlots || {}).map(([date, slots]) => (
                     <div key={date} style={{ marginBottom: "var(--space-lg)" }}>

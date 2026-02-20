@@ -49,7 +49,6 @@ CREW_CALL tags:
   CASTING_ROLES    Seeking actors for named speaking roles (casting call, auditions, voice actors, self-tapes)
   CASTING_EXTRAS   Seeking background extras or "extras"
   SHOOT_DATES_PRESENT  Specific filming dates are stated (e.g. "Spring Weekend 1", "April 3-5", "Winter Week 5")
-  UNPAID          Explicitly states no compensation / volunteer / unpaid
   CREW_DP          Director of Photography role mentioned
   CREW_SOUND       Sound designer/mixer/boom role mentioned
   CREW_EDITOR      Editor role mentioned
@@ -85,6 +84,7 @@ reasoning       (required: 1–2 sentences explaining your category + confidence
 film_title      Film name extracted from body (not the email subject line), or null
 logline         Logline/synopsis if explicitly written in the email, or null
 production_type e.g. "PPSL Film", "MAG-funded", "Senior Directing Film", "Sitcom Production Grant", "Wildcat Animate Film", "MultiCulti Studios Film", or null
+director_name   Film director name if explicitly stated in the message body (e.g. "Director: Jane Doe"), or null
 roles_mentioned Array of all specific job titles mentioned, or null (e.g. ["DP","Sound Designer","Editor"])
 shoot_dates_text Filming schedule as written in the email, or null
 petition_location How/where to apply for crew (e.g. "Petitions at Shakesmart", "Fill out this form: URL"), or null
@@ -145,7 +145,6 @@ export const LLM_JSON_SCHEMA = {
           "SCOPE_TRAVEL",
           "SCOPE_UNCLEAR",
           // Crew / casting
-          "UNPAID",
           "CASTING_EXTRAS",
           "CASTING_ROLES",
           "CREW_DP",
@@ -182,6 +181,7 @@ export const LLM_JSON_SCHEMA = {
     film_title: { anyOf: [{ type: "string" }, { type: "null" }] },
     logline: { anyOf: [{ type: "string" }, { type: "null" }] },
     production_type: { anyOf: [{ type: "string" }, { type: "null" }] },
+    director_name: { anyOf: [{ type: "string" }, { type: "null" }] },
 
     // ── Crew-call specifics ──────────────────────────────────────────────
     roles_mentioned: {
@@ -226,6 +226,7 @@ export const LLM_JSON_SCHEMA = {
     "film_title",
     "logline",
     "production_type",
+    "director_name",
     "roles_mentioned",
     "shoot_dates_text",
     "petition_location",
@@ -421,7 +422,6 @@ export async function classifyWithLLM(apiKey, subject, bodyText, options = {}) {
     "SCOPE_EQUIPMENT",
     "SCOPE_TRAVEL",
     "SCOPE_UNCLEAR",
-    "UNPAID",
     "CASTING_EXTRAS",
     "CASTING_ROLES",
     "CREW_DP",
@@ -467,6 +467,9 @@ export async function classifyWithLLM(apiKey, subject, bodyText, options = {}) {
     parsed.roles_mentioned.length === 0
   ) {
     parsed.roles_mentioned = null;
+  }
+  if (typeof parsed.director_name !== "string" || !parsed.director_name.trim()) {
+    parsed.director_name = null;
   }
 
   if (typeof parsed.reasoning !== "string" || !parsed.reasoning.trim()) {
@@ -724,6 +727,7 @@ function _pack(category, tags, confidence, reasons, deadlines, contacts) {
     film_title: null,
     logline: null,
     production_type: null,
+    director_name: null,
     roles_mentioned: null,
     shoot_dates_text: null,
     petition_location: null,
@@ -765,9 +769,6 @@ function _finalize(
     ) {
       tags.add("CASTING_ROLES");
       if (combined.includes("extras")) tags.add("CASTING_EXTRAS");
-    }
-    if (_hasAny(combined, ["unpaid", "volunteer", "no pay"])) {
-      tags.add("UNPAID");
     }
     if (contacts.length) tags.add("HAS_CONTACT_INFO");
   }

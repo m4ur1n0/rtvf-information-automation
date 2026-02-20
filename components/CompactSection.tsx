@@ -24,8 +24,6 @@ export function CompactSection({
   let statusCount = 0;
   if (type === "grant") {
     statusCount = emails.filter((e) => e.tags.includes("GRANT_OPEN")).length;
-  } else if (type === "crew") {
-    statusCount = emails.filter((e) => e.tags.includes("PAID")).length;
   }
 
   return (
@@ -40,12 +38,6 @@ export function CompactSection({
           <div className="section-metric">
             <span className="metric-value">{statusCount}</span>
             <span className="metric-label">open</span>
-          </div>
-        )}
-        {type === "crew" && statusCount > 0 && (
-          <div className="section-metric">
-            <span className="metric-value">{statusCount}</span>
-            <span className="metric-label">paid</span>
           </div>
         )}
       </div>

@@ -28,6 +28,7 @@ export interface EmailRow {
   film_title: string | null;
   logline: string | null;
   production_type: string | null;
+  director_name: string | null;
 
   // LLM-extracted: crew calls
   roles_json: string | null;        // JSON string[] of roles mentioned
@@ -94,6 +95,28 @@ interface ApiResponse {
   rows: EmailRow[];
   limit?: number;
   offset?: number;
+  error?: string;
+}
+
+export interface CategoryCounts {
+  all: number;
+  all_messages?: number;
+  grants: number;
+  crew_calls: number;
+  casting: number;
+  events: number;
+  resources: number;
+}
+
+interface CountsResponse {
+  ok: boolean;
+  counts?: CategoryCounts;
+  error?: string;
+}
+
+interface TotalMessagesResponse {
+  ok: boolean;
+  total?: number;
   error?: string;
 }
 
@@ -261,6 +284,41 @@ export async function fetchEmailById(id: string): Promise<ParsedEmailRow> {
   const rows = await fetchEmailRows("/api/email", { id });
   if (!rows.length) throw new Error(`Email not found: ${id}`);
   return rows[0];
+}
+
+export async function fetchCategoryCounts(): Promise<CategoryCounts> {
+  const baseUrl = getApiUrl();
+  const url = new URL(`${baseUrl}/api/counts`);
+
+  const response = await fetch(url.toString(), { cache: "no-store" });
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Unknown error");
+    throw new Error(`Worker API error (${response.status}): ${errorText}`);
+  }
+
+  const data: CountsResponse = await response.json();
+  if (!data.ok || !data.counts) {
+    throw new Error(data.error || "Invalid counts response");
+  }
+  return data.counts;
+}
+
+export async function fetchTotalMessages(includeDoNotCare = false): Promise<number> {
+  const baseUrl = getApiUrl();
+  const url = new URL(`${baseUrl}/api/messages/count`);
+  if (includeDoNotCare) url.searchParams.set("includeDoNotCare", "true");
+
+  const response = await fetch(url.toString(), { cache: "no-store" });
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Unknown error");
+    throw new Error(`Worker API error (${response.status}): ${errorText}`);
+  }
+
+  const data: TotalMessagesResponse = await response.json();
+  if (!data.ok || typeof data.total !== "number") {
+    throw new Error(data.error || "Invalid total messages response");
+  }
+  return data.total;
 }
 
 export async function fetchEmailsWithRetry(

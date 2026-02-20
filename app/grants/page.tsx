@@ -1,21 +1,78 @@
-import { fetchGrants, type ParsedEmailRow } from "@/lib/api";
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GrantsDashboard } from "@/components/GrantsDashboard";
+import { fetchCategoryCounts, fetchGrants, type ParsedEmailRow } from "@/lib/api";
 
-async function fetchGrantsData(): Promise<{ emails: ParsedEmailRow[]; error?: string }> {
-  try {
-    const emails = await fetchGrants({ limit: 50 });
-    return { emails };
-  } catch (error) {
-    return { emails: [], error: error instanceof Error ? error.message : "Unknown error" };
-  }
-}
+const PAGE_SIZE = 25;
 
-export default async function GrantsPage() {
-  const { emails, error } = await fetchGrantsData();
+export default function GrantsPage() {
+  const [emails, setEmails] = useState<ParsedEmailRow[]>([]);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | undefined>(undefined);
+  const [totalGrants, setTotalGrants] = useState<number | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const inFlightOffsets = useRef<Set<number>>(new Set());
 
-  const openCount = emails.filter(
-    (e) => e.grant_status === "open" || e.tags.includes("GRANT_OPEN")
-  ).length;
+  const mergeUniqueById = useCallback((existing: ParsedEmailRow[], incoming: ParsedEmailRow[]) => {
+    const byId = new Map<string, ParsedEmailRow>();
+    for (const row of existing) byId.set(row.id, row);
+    for (const row of incoming) byId.set(row.id, row);
+    return Array.from(byId.values()).sort((a, b) => b.sent_at - a.sent_at);
+  }, []);
+
+  const loadMore = useCallback(async () => {
+    if (loading || !hasMore) return;
+    if (inFlightOffsets.current.has(offset)) return;
+    inFlightOffsets.current.add(offset);
+    setLoading(true);
+    setError(undefined);
+    try {
+      const rows = await fetchGrants({ limit: PAGE_SIZE, offset });
+      setEmails((prev) => mergeUniqueById(prev, rows));
+      setOffset((prev) => prev + rows.length);
+      setHasMore(rows.length === PAGE_SIZE);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      inFlightOffsets.current.delete(offset);
+      setLoading(false);
+    }
+  }, [hasMore, loading, mergeUniqueById, offset]);
+
+  useEffect(() => {
+    void loadMore();
+  }, [loadMore]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchCategoryCounts()
+      .then((counts) => { if (!cancelled) setTotalGrants(counts.grants); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    const node = loadMoreRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry?.isIntersecting) return;
+        void loadMore();
+      },
+      { rootMargin: "300px 0px" }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [loadMore]);
+
+  const openCount = useMemo(
+    () => emails.filter((e) => e.grant_status === "open" || e.tags.includes("GRANT_OPEN")).length,
+    [emails]
+  );
 
   return (
     <div className="dashboard-container" style={{ paddingTop: 0 }}>
@@ -31,7 +88,7 @@ export default async function GrantsPage() {
                 </div>
               )}
               <div className="stat-pill stat-total">
-                <span className="stat-value">{emails.length}</span>
+                <span className="stat-value">{totalGrants ?? emails.length}</span>
                 <span className="stat-label">total</span>
               </div>
             </div>
@@ -43,6 +100,13 @@ export default async function GrantsPage() {
       </header>
 
       <GrantsDashboard emails={emails} error={error} />
+
+      <div ref={loadMoreRef} style={{ height: 1 }} />
+      {loading && (
+        <div style={{ textAlign: "center", fontSize: 12, color: "var(--text-tertiary)", padding: "var(--space-md)" }}>
+          Loading more grants...
+        </div>
+      )}
     </div>
   );
 }

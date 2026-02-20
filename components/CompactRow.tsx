@@ -27,13 +27,7 @@ export function CompactRow({ email, type }: CompactRowProps) {
     }
 
     if (type === "crew") {
-      if (email.tags.includes("PAID")) {
-        return { label: "Paid", color: "status-open" };
-      } else if (email.tags.includes("UNPAID")) {
-        return { label: "Unpaid", color: "status-unclear" };
-      } else {
-        return { label: "Pay Unclear", color: "status-upcoming" };
-      }
+      return { label: "Crew Call", color: "status-open" };
     }
 
     if (type === "casting") {
@@ -141,17 +135,6 @@ export function CompactRow({ email, type }: CompactRowProps) {
             </div>
           )}
 
-          {/* Reasons */}
-          {email.reasons.length > 0 && (
-            <div className="detail-block">
-              <div className="detail-label">Classification</div>
-              <ul className="reason-list">
-                {email.reasons.map((reason, idx) => (
-                  <li key={idx}>{reason}</li>
-                ))}
-              </ul>
-            </div>
-          )}
         </div>
       )}
     </div>

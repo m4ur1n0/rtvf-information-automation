@@ -167,6 +167,7 @@ export function EmailDetailPanel({ email, type }: EmailDetailPanelProps) {
     if (type !== "crew" && type !== "casting") return null;
     const hasAny =
       email.film_title || email.logline || email.production_type ||
+      (type === "casting" && email.director_name) ||
       (email.roles_mentioned && email.roles_mentioned.length > 0) ||
       email.shoot_dates_text || email.petition_location || deadlineDisplay;
     if (!hasAny) return null;
@@ -185,6 +186,12 @@ export function EmailDetailPanel({ email, type }: EmailDetailPanelProps) {
             <div className="detail-meta-row">
               <span className="detail-meta-key">Program</span>
               <span className="detail-meta-val">{email.production_type}</span>
+            </div>
+          )}
+          {type === "casting" && email.director_name && (
+            <div className="detail-meta-row">
+              <span className="detail-meta-key">Director</span>
+              <span className="detail-meta-val">{email.director_name}</span>
             </div>
           )}
           {email.logline && (
@@ -336,22 +343,6 @@ export function EmailDetailPanel({ email, type }: EmailDetailPanelProps) {
           <span className={`status-dot ${status.color}`} />
           <span className={`status-badge ${status.color}`}>{status.label}</span>
           {email.is_bump === 1 && <span className="bump-badge">BUMP</span>}
-          {email.classifier_version === "v2_llm" && (
-            <span
-              style={{
-                fontSize: "10px",
-                padding: "2px 5px",
-                borderRadius: "4px",
-                background: "color-mix(in srgb, var(--accent-grant) 12%, transparent)",
-                color: "var(--accent-grant)",
-                fontFamily: "var(--font-mono)",
-                letterSpacing: "0.03em",
-              }}
-              title="Classified by LLM"
-            >
-              LLM
-            </span>
-          )}
         </div>
         <div className="detail-panel-date">{formatSentDate(email.sent_at)}</div>
       </div>
@@ -420,17 +411,6 @@ export function EmailDetailPanel({ email, type }: EmailDetailPanelProps) {
           {renderBody()}
         </div>
 
-        {/* Classification Reasons / LLM Reasoning */}
-        {email.reasons.length > 0 && (
-          <div className="detail-section">
-            <div className="detail-section-label">Classification Reasoning</div>
-            <ul className="reason-list">
-              {email.reasons.map((reason, idx) => (
-                <li key={idx}>{reason}</li>
-              ))}
-            </ul>
-          </div>
-        )}
       </div>
     </div>
   );

@@ -1,18 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Users, DollarSign, Star, CalendarDays, Package } from "lucide-react";
 import {
+  fetchCategoryCounts,
   fetchEmailById,
   fetchEmails,
   fetchEvents,
   fetchGrants,
   fetchPetitions,
   fetchResources,
+  fetchTotalMessages,
+  type CategoryCounts,
   type ParsedEmailRow,
 } from "@/lib/api";
 import { EmailDetailPanel } from "./EmailDetailPanel";
 import { formatSentDate } from "@/lib/format";
+
+const PAGE_SIZE = 25;
 
 type CategoryFilter = "ALL" | "GRANT" | "CREW_CALL" | "CASTING" | "EVENT" | "RESOURCE";
 
@@ -29,6 +34,8 @@ interface BucketState {
   error?: string;
   loading: boolean;
   loaded: boolean;
+  offset: number;
+  hasMore: boolean;
 }
 
 const categories: CategoryConfig[] = [
@@ -41,7 +48,7 @@ const categories: CategoryConfig[] = [
 ];
 
 function emptyBucket(): BucketState {
-  return { emails: [], loading: false, loaded: false };
+  return { emails: [], loading: false, loaded: false, offset: 0, hasMore: true };
 }
 
 function initialBuckets(): Record<CategoryFilter, BucketState> {
@@ -74,70 +81,138 @@ function hasMedia(email: ParsedEmailRow): boolean {
   return /\.(jpg|jpeg|png|gif|mp4|mov|webm)|youtube|vimeo|drive\.google/i.test(email.body_text);
 }
 
-async function fetchBucket(filter: CategoryFilter): Promise<ParsedEmailRow[]> {
+async function fetchBucket(filter: CategoryFilter, offset: number): Promise<ParsedEmailRow[]> {
   switch (filter) {
     case "ALL":
-      return fetchEmails({ limit: 25, summary: true });
+      return fetchEmails({ limit: PAGE_SIZE, offset, summary: true });
     case "GRANT":
-      return fetchGrants({ limit: 25, summary: true });
+      return fetchGrants({ limit: PAGE_SIZE, offset, summary: true });
     case "CREW_CALL":
-      return fetchPetitions({ limit: 25, casting: false, summary: true });
+      return fetchPetitions({ limit: PAGE_SIZE, offset, casting: false, summary: true });
     case "CASTING":
-      return fetchPetitions({ limit: 25, casting: true, summary: true });
+      return fetchPetitions({ limit: PAGE_SIZE, offset, casting: true, summary: true });
     case "EVENT":
-      return fetchEvents({ limit: 25, summary: true });
+      return fetchEvents({ limit: PAGE_SIZE, offset, summary: true });
     case "RESOURCE":
-      return fetchResources({ limit: 25, summary: true });
+      return fetchResources({ limit: PAGE_SIZE, offset, summary: true });
   }
+}
+
+function mergeUniqueById(existing: ParsedEmailRow[], incoming: ParsedEmailRow[]): ParsedEmailRow[] {
+  const byId = new Map<string, ParsedEmailRow>();
+  for (const row of existing) byId.set(row.id, row);
+  for (const row of incoming) byId.set(row.id, row);
+  return Array.from(byId.values()).sort((a, b) => b.sent_at - a.sent_at);
 }
 
 export function InboxDashboard() {
   const [activeFilter, setActiveFilter] = useState<CategoryFilter>("ALL");
   const [buckets, setBuckets] = useState<Record<CategoryFilter, BucketState>>(() => initialBuckets());
+  const [counts, setCounts] = useState<CategoryCounts | null>(null);
+  const [totalMessages, setTotalMessages] = useState<number | null>(null);
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<CategoryConfig | null>(null);
   const [detailById, setDetailById] = useState<Record<string, ParsedEmailRow>>({});
   const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const bucketsRef = useRef<Record<CategoryFilter, BucketState>>(initialBuckets());
+  const inFlightRef = useRef<Record<CategoryFilter, Set<number>>>({
+    ALL: new Set(),
+    GRANT: new Set(),
+    CREW_CALL: new Set(),
+    CASTING: new Set(),
+    EVENT: new Set(),
+    RESOURCE: new Set(),
+  });
 
-  const ensureBucketLoaded = useCallback(async (filter: CategoryFilter) => {
-    let shouldLoad = false;
-    setBuckets((prev) => {
-      const bucket = prev[filter];
-      if (bucket.loading || bucket.loaded) return prev;
-      shouldLoad = true;
-      return {
-        ...prev,
-        [filter]: { ...bucket, loading: true, error: undefined },
-      };
-    });
-    if (!shouldLoad) return;
+  useEffect(() => {
+    bucketsRef.current = buckets;
+  }, [buckets]);
+
+  const ensureBucketLoaded = useCallback(async (filter: CategoryFilter, loadMore = false) => {
+    const bucket = bucketsRef.current[filter];
+    if (bucket.loading) return;
+    if (!loadMore && bucket.loaded) return;
+    if (loadMore && !bucket.hasMore) return;
+    const requestOffset = loadMore ? bucket.offset : 0;
+    if (inFlightRef.current[filter].has(requestOffset)) return;
+    inFlightRef.current[filter].add(requestOffset);
+
+    setBuckets((prev) => ({
+      ...prev,
+      [filter]: { ...prev[filter], loading: true, error: undefined },
+    }));
 
     try {
-      const emails = await fetchBucket(filter);
-      setBuckets((prev) => ({
-        ...prev,
-        [filter]: {
-          emails,
-          loading: false,
-          loaded: true,
-        },
-      }));
+      const rows = await fetchBucket(filter, requestOffset);
+      setBuckets((prev) => {
+        const bucket = prev[filter];
+        const nextEmails = requestOffset === 0
+          ? rows
+          : mergeUniqueById(bucket.emails, rows);
+
+        return {
+          ...prev,
+          [filter]: {
+            ...bucket,
+            emails: nextEmails,
+            loading: false,
+            loaded: true,
+            offset: Math.max(bucket.offset, requestOffset + rows.length),
+            hasMore: rows.length === PAGE_SIZE,
+          },
+        };
+      });
     } catch (error) {
       setBuckets((prev) => ({
         ...prev,
         [filter]: {
-          emails: [],
+          ...prev[filter],
           loading: false,
           loaded: true,
           error: error instanceof Error ? error.message : "Unknown error",
         },
       }));
+    } finally {
+      inFlightRef.current[filter].delete(requestOffset);
     }
   }, []);
 
   useEffect(() => {
     void ensureBucketLoaded(activeFilter);
   }, [activeFilter, ensureBucketLoaded]);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      fetchCategoryCounts().catch(() => null),
+      fetchTotalMessages().catch(() => null),
+    ]).then(([countsData, totalData]) => {
+      if (cancelled) return;
+      if (countsData) setCounts(countsData);
+      if (typeof totalData === "number") setTotalMessages(totalData);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    const node = loadMoreRef.current;
+    if (!node) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry?.isIntersecting) return;
+        const bucket = buckets[activeFilter];
+        if (!bucket.loaded || bucket.loading || !bucket.hasMore) return;
+        void ensureBucketLoaded(activeFilter, true);
+      },
+      { rootMargin: "300px 0px" }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [activeFilter, buckets, ensureBucketLoaded]);
 
   const activeBucket = buckets[activeFilter];
 
@@ -180,13 +255,28 @@ export function InboxDashboard() {
     }
   }, [detailById]);
 
+  const getCategoryCount = (key: CategoryFilter): string | number => {
+    if (key === "ALL" && totalMessages != null) return totalMessages;
+    if (counts) {
+      if (key === "ALL") return counts.all_messages ?? counts.all;
+      if (key === "GRANT") return counts.grants;
+      if (key === "CREW_CALL") return counts.crew_calls;
+      if (key === "CASTING") return counts.casting;
+      if (key === "EVENT") return counts.events;
+      return counts.resources;
+    }
+    const bucket = buckets[key];
+    if (!bucket.loaded && !bucket.loading) return "…";
+    if (bucket.loading && bucket.emails.length === 0) return "…";
+    return bucket.emails.length;
+  };
+
   return (
     <div className="tabbed-dashboard">
       <div className="inbox-filter-tabs">
         {categories.map((cat) => {
           const isActive = activeFilter === cat.key;
-          const count = buckets[cat.key].emails.length;
-          const loading = buckets[cat.key].loading;
+          const count = getCategoryCount(cat.key);
 
           return (
             <button
@@ -206,7 +296,7 @@ export function InboxDashboard() {
                 </span>
               )}
               <span className="inbox-filter-label">{cat.label}</span>
-              <span className="inbox-filter-count">{loading && count === 0 ? "…" : count}</span>
+              <span className="inbox-filter-count">{count}</span>
             </button>
           );
         })}
@@ -221,7 +311,7 @@ export function InboxDashboard() {
                   ? "All Messages"
                   : categories.find((c) => c.key === activeFilter)?.label}
               </h2>
-              <div className="list-panel-count">{filteredEmails.length}</div>
+              <div className="list-panel-count">{getCategoryCount(activeFilter)}</div>
             </div>
           </div>
 
@@ -282,6 +372,14 @@ export function InboxDashboard() {
                     </div>
                   );
                 })}
+
+                <div ref={loadMoreRef} style={{ height: 1 }} />
+
+                {activeBucket.loading && activeBucket.loaded && (
+                  <div style={{ padding: "10px 0", fontSize: 12, color: "var(--text-tertiary)", textAlign: "center" }}>
+                    Loading more...
+                  </div>
+                )}
               </div>
             )}
           </div>

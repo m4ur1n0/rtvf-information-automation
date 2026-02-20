@@ -26,6 +26,58 @@ export default {
             return jsonResponse({ ok: true });
         }
 
+        if (req.method === "GET" && url.pathname === "/api/messages/count") {
+            const startedAt = Date.now();
+            const includeDoNotCare = url.searchParams.get("includeDoNotCare") === "true";
+            const row = await env.DATABASE_BINDING.prepare(
+                `SELECT COUNT(*) AS total
+                 FROM emails
+                 ${includeDoNotCare ? "" : "WHERE category != 'DO_NOT_CARE'"}`
+            ).first();
+
+            const total = Number(row?.total ?? 0);
+            logApiRequest(env, {
+                path: url.pathname,
+                query: Object.fromEntries(url.searchParams.entries()),
+                total,
+                duration_ms: Date.now() - startedAt,
+                source: "messages_count",
+            });
+            return jsonResponse({ ok: true, total });
+        }
+
+        if (req.method === "GET" && url.pathname === "/api/counts") {
+            const startedAt = Date.now();
+            const row = await env.DATABASE_BINDING.prepare(
+                `SELECT
+                    (SELECT COUNT(*) FROM emails WHERE category != 'DO_NOT_CARE') AS all_messages,
+                    (SELECT COUNT(*) FROM grant_posts) AS grants,
+                    (SELECT COUNT(*) FROM petition_posts WHERE is_casting = 0) AS crew_calls,
+                    (SELECT COUNT(*) FROM petition_posts WHERE is_casting = 1) AS casting,
+                    (SELECT COUNT(*) FROM event_posts) AS events,
+                    (SELECT COUNT(*) FROM resource_posts) AS resources`
+            ).first();
+
+            const counts = {
+                all_messages: Number(row?.all_messages ?? 0),
+                grants: Number(row?.grants ?? 0),
+                crew_calls: Number(row?.crew_calls ?? 0),
+                casting: Number(row?.casting ?? 0),
+                events: Number(row?.events ?? 0),
+                resources: Number(row?.resources ?? 0),
+            };
+            const all = counts.all_messages;
+
+            logApiRequest(env, {
+                path: url.pathname,
+                query: Object.fromEntries(url.searchParams.entries()),
+                counts: { ...counts, all },
+                duration_ms: Date.now() - startedAt,
+                source: "counts",
+            });
+            return jsonResponse({ ok: true, counts: { ...counts, all } });
+        }
+
         if (req.method === "GET" && url.pathname === "/api/email") {
             const id = url.searchParams.get("id");
             if (!id) return badRequest("missing id");
@@ -47,7 +99,7 @@ export default {
                         '[]'
                     ) AS reasons_json,
                     e.is_bump, e.thread_key, e.canonical_id,
-                    e.film_title, e.logline, e.production_type,
+                    e.film_title, e.logline, e.production_type, e.director_name,
                     COALESCE(
                         (SELECT json_group_array(role) FROM (SELECT role FROM email_roles WHERE email_id = e.id ORDER BY position)),
                         e.roles_json
@@ -125,6 +177,7 @@ export default {
                     film_title: "pp.film_title",
                     logline: "pp.logline",
                     production_type: "pp.production_type",
+                    director_name: "pp.director_name",
                     shoot_dates_text: "pp.shoot_dates_text",
                     petition_location: "pp.petition_location",
                     deadline_at: "pp.deadline_at",
@@ -259,7 +312,7 @@ export default {
                     e.confidence,
                     ${reasonsSelect},
                     e.is_bump, e.thread_key, e.canonical_id,
-                    e.film_title, e.logline, e.production_type,
+                    e.film_title, e.logline, e.production_type, e.director_name,
                     ${rolesSelect},
                     e.shoot_dates_text, e.petition_location, e.deadline_at,
                     e.grant_amount, e.grant_status, e.application_url, e.eligibility_text, e.grant_scope,
@@ -316,7 +369,7 @@ export default {
                     : null;
                 const bodyHtml = data.text?.html ?? null;
                 const bodyTextRaw = data.text?.plain ?? (bodyHtml ? htmlToPlainText(bodyHtml) : "");
-                const bodyText = stripQuotedEmail(bodyTextRaw);
+                const bodyText = normalizeBodyForIngest(subject, bodyTextRaw);
                 const providerMessageId = data.messageId ?? data.id ?? null;
                 const sentAt = parseSentAtToEpochSeconds(data.date);
                 const listserv = payload.account ?? "emailengine";
@@ -368,7 +421,7 @@ export default {
 
                         const subject = pick(obj, ["subject", "Subject"]) ?? "(no subject)";
                         const bodyTextRaw = pick(obj, ["body_text", "body", "text", "Body", "content"]) ?? "";
-                        const bodyText = stripQuotedEmail(bodyTextRaw);
+                        const bodyText = normalizeBodyForIngest(subject, bodyTextRaw);
                         const bodyHtml = pick(obj, ["body_html", "html", "BodyHTML"]) ?? null;
 
                         const fromEmail = pick(obj, ["from_email", "from", "From", "sender"]) ?? null;
@@ -514,8 +567,8 @@ async function ingestOneMessage(env, m) {
     // ── Merge into canonical result ──────────────────────────────────────
 
     let category, tags, confidence, reasons;
-    let film_title, logline, production_type, roles_mentioned;
-    let shoot_dates_text, petition_location, pay;
+    let film_title, logline, production_type, director_name, roles_mentioned;
+    let shoot_dates_text, petition_location;
     let grant_amount, grant_status, deadline_text, deadline_iso, application_url, eligibility_text, grant_scope;
     let event_date_text, event_location, rsvp_url, llm_reasoning;
 
@@ -529,10 +582,10 @@ async function ingestOneMessage(env, m) {
         film_title = llmResult.film_title ?? null;
         logline = llmResult.logline ?? null;
         production_type = llmResult.production_type ?? null;
+        director_name = llmResult.director_name ?? null;
         roles_mentioned = llmResult.roles_mentioned ?? null;
         shoot_dates_text = llmResult.shoot_dates_text ?? null;
         petition_location = llmResult.petition_location ?? null;
-        pay = llmResult.pay ?? null;
         grant_amount = llmResult.grant_amount ?? null;
         grant_status = llmResult.grant_status ?? null;
         deadline_text = llmResult.deadline_text ?? null;
@@ -555,10 +608,10 @@ async function ingestOneMessage(env, m) {
         film_title = null;
         logline = null;
         production_type = null;
+        director_name = null;
         roles_mentioned = null;
         shoot_dates_text = null;
         petition_location = null;
-        pay = null;
         grant_amount = null;
         grant_status = regexResult.grant_status ?? null;
         deadline_text = regexResult.deadline_text ?? null;
@@ -628,7 +681,7 @@ async function ingestOneMessage(env, m) {
             category, tags_json, confidence, reasons_json,
             is_bump, thread_key, canonical_id,
             deadlines_json, dates_mentioned_json, contacts_json,
-            film_title, logline, production_type,
+            film_title, logline, production_type, director_name,
             roles_json, shoot_dates_text, petition_location, deadline_at,
             grant_amount, grant_status, application_url, eligibility_text, grant_scope,
             event_date_text, event_location, rsvp_url,
@@ -641,12 +694,12 @@ async function ingestOneMessage(env, m) {
             ?13, ?14, ?15, ?16,
             ?17, ?18, ?19,
             ?20, ?21, ?22,
-            ?23, ?24, ?25,
-            ?26, ?27, ?28, ?29,
-            ?30, ?31, ?32, ?33, ?34,
-            ?35, ?36, ?37,
-            ?38, ?39,
-            ?40, ?41
+            ?23, ?24, ?25, ?26,
+            ?27, ?28, ?29, ?30,
+            ?31, ?32, ?33, ?34, ?35,
+            ?36, ?37, ?38,
+            ?39, ?40,
+            ?41, ?42
         )`
     ).bind(
         id,
@@ -674,6 +727,7 @@ async function ingestOneMessage(env, m) {
         film_title,
         logline,
         production_type,
+        director_name,
         null,
         shoot_dates_text,
         petition_location,
@@ -712,10 +766,10 @@ async function ingestOneMessage(env, m) {
         isBump,
         filmTitle: film_title,
         productionType: production_type,
+        directorName: director_name,
         logline,
         shootDatesText: shoot_dates_text,
         petitionLocation: petition_location,
-        pay,
         deadlineAt: deadline_at,
         grantAmount: grant_amount,
         grantStatus: grant_status,
@@ -805,6 +859,44 @@ function parseSentAtToEpochSeconds(v) {
     if (/^\d+$/.test(trimmed)) return Number(trimmed);
     const ms = Date.parse(trimmed);
     return Number.isNaN(ms) ? nowSec() : Math.floor(ms / 1000);
+}
+
+function normalizeBodyForIngest(subject, bodyTextRaw) {
+    const raw = String(bodyTextRaw ?? "");
+    const stripped = stripQuotedEmail(raw);
+    if (!shouldPreserveQuotedThreadContent(subject, raw, stripped)) {
+        return stripped;
+    }
+
+    // Keep thread content for bump/reply reposts while still removing listserv footer noise.
+    return raw
+        .replace(/#{4,}\s*To unsubscribe from[\s\S]*$/i, "")
+        .trim()
+        .slice(0, 8000);
+}
+
+function shouldPreserveQuotedThreadContent(subject, rawBody, strippedBody) {
+    const s = String(subject ?? "");
+    const b = String(rawBody ?? "");
+    const sLower = s.toLowerCase();
+    const bLower = b.toLowerCase();
+
+    const isReplyOrForward = /^\s*(re|fw|fwd)\s*:/i.test(s);
+    const hasBumpSignal =
+        /\bbump(?:ing)?\b|repost(?:ing)?|signal boost/i.test(sLower) ||
+        /^\s*(bump|bumping|reposting|signal boost)\b/m.test(bLower);
+    const hasQuotedHeader =
+        /\non .* wrote:\n/i.test(b) ||
+        /\nfrom:\s.*\nsent:\s.*\n(?:to:\s.*\n)?subject:\s.*\n/i.test(b) ||
+        /\n-----original message-----\n/i.test(b);
+
+    const rawLen = b.trim().length;
+    const strippedLen = String(strippedBody ?? "").trim().length;
+    const mostlyStripped = rawLen > 0 && strippedLen / rawLen < 0.35;
+
+    return (isReplyOrForward || hasBumpSignal) &&
+        hasQuotedHeader &&
+        (strippedLen < 600 || mostlyStripped);
 }
 
 function parsePositiveInt(v) {
@@ -917,6 +1009,7 @@ async function listProjectedEmails(env, url, opts) {
             ${col("film_title", "e.film_title")},
             ${col("logline", "e.logline")},
             ${col("production_type", "e.production_type")},
+            ${col("director_name", "e.director_name")},
             ${rolesSelect},
             ${col("shoot_dates_text", "e.shoot_dates_text")},
             ${col("petition_location", "e.petition_location")},
@@ -1062,8 +1155,8 @@ async function upsertCategoryProjection(env, row) {
         const isCasting = tags.has("CASTING_ROLES") || tags.has("CASTING_EXTRAS");
         await env.DATABASE_BINDING.prepare(
             `INSERT INTO petition_posts (
-                email_id, title, film_title, production_type, logline, shoot_dates_text,
-                petition_location, pay, is_casting, is_bump, deadline_at,
+                email_id, title, film_title, production_type, logline, director_name, shoot_dates_text,
+                petition_location, is_casting, is_bump, deadline_at,
                 classifier_confidence, created_at, updated_at
             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?13)
             ON CONFLICT(email_id) DO UPDATE SET
@@ -1071,9 +1164,9 @@ async function upsertCategoryProjection(env, row) {
                 film_title=excluded.film_title,
                 production_type=excluded.production_type,
                 logline=excluded.logline,
+                director_name=excluded.director_name,
                 shoot_dates_text=excluded.shoot_dates_text,
                 petition_location=excluded.petition_location,
-                pay=excluded.pay,
                 is_casting=excluded.is_casting,
                 is_bump=excluded.is_bump,
                 deadline_at=excluded.deadline_at,
@@ -1085,9 +1178,9 @@ async function upsertCategoryProjection(env, row) {
             row.filmTitle ?? null,
             row.productionType ?? null,
             row.logline ?? null,
+            row.directorName ?? null,
             row.shootDatesText ?? null,
             row.petitionLocation ?? null,
-            row.pay ?? null,
             isCasting ? 1 : 0,
             row.isBump ? 1 : 0,
             row.deadlineAt ?? null,

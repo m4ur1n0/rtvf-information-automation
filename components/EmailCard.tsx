@@ -29,13 +29,7 @@ export function EmailCard({ email, type }: EmailCardProps) {
     }
 
     if (type === "Crew Call") {
-      if (email.tags.includes("PAID")) {
-        return { text: "Paid", color: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" };
-      } else if (email.tags.includes("UNPAID")) {
-        return { text: "Unpaid", color: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300" };
-      } else {
-        return { text: "Pay Unclear", color: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300" };
-      }
+      return { text: "Crew Call", color: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" };
     }
 
     if (type === "Casting") {
@@ -178,19 +172,6 @@ export function EmailCard({ email, type }: EmailCardProps) {
             )}
           </div>
 
-          {/* Reasons */}
-          {email.reasons.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
-                Classification Reasons
-              </h3>
-              <ul className="list-disc list-inside text-sm text-zinc-700 dark:text-zinc-300 space-y-0.5">
-                {email.reasons.map((reason, idx) => (
-                  <li key={idx}>{reason}</li>
-                ))}
-              </ul>
-            </div>
-          )}
         </div>
       )}
     </div>
