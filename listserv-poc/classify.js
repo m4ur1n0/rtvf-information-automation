@@ -20,6 +20,11 @@
 
 export const LLM_SYSTEM_PROMPT = `You are an email classifier for the Northwestern University RTVF (Radio/TV/Film) department listserv. Your entire response must be a single JSON object. Do NOT add any fields that are not listed below. Fill in EVERY field — never skip a field or leave an array empty if something applies.
 
+You will be provided with:
+- Current time (CST timezone) — CRITICAL: Use this to interpret ALL dates. When you see "Feb 20th" and current time shows Feb 20, 2026, the date is 2026-02-20, NOT the day before. When you see relative dates like "this week", "next Monday", "tonight", calculate based on the current time provided.
+- Email subject line
+- Email body text
+
 ═══ RTVF CONTEXT ═══
 - "Petitioning" = in-person application to join a film crew (at Shakesmart, Norris, Louis Hall, etc.)
 - "PPSL" = Pre-Production Student Lab student film program
@@ -91,7 +96,7 @@ petition_location How/where to apply for crew (e.g. "Petitions at Shakesmart", "
 grant_amount    e.g. "up to $750" or "$750–$3,000", or null
 grant_status    "open", "upcoming", "closed", or "unclear" for GRANTs, null otherwise
 deadline_text   Deadline as written in the email, or null
-deadline_iso    Deadline in YYYY-MM-DD format if parseable, or null
+deadline_iso    Deadline in YYYY-MM-DD format if parseable, or null. IMPORTANT: Use the provided current time (CST) to interpret relative dates. For example, if current time shows Feb 20, 2026 and email says "by Feb 20th", the deadline is 2026-02-20, NOT 2026-02-19. If it says "by Feb 20th, 7pm", the date is still 2026-02-20 (the time is ignored for this field). If it says "this Friday" or "next week", calculate based on current time.
 application_url Direct URL to apply/petition, or null
 eligibility_text Who is eligible as stated, or null
 grant_scope     "production", "post", "equipment", "travel", or "unclear" for GRANTs, null otherwise
@@ -279,7 +284,16 @@ export async function classifyWithLLM(apiKey, subject, bodyText, options = {}) {
     : INITIAL_MAX_OUTPUT_TOKENS;
 
   const truncBody = (bodyText || "").slice(0, 2500);
-  const prompt = `Subject: ${subject}\n\nBody:\n${truncBody}`;
+  const currentTime = new Date().toLocaleString('en-US', {
+    timeZone: 'America/Chicago',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+  const prompt = `Current time (CST): ${currentTime}\n\nSubject: ${subject}\n\nBody:\n${truncBody}`;
   let parsed;
   let usageMetadata = null;
   let lastError = null;

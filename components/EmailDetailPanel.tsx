@@ -348,25 +348,25 @@ export function EmailDetailPanel({
   return (
     <div className="detail-panel">
       {/* ── Header ── */}
-      <div className="detail-panel-header">
-        {showStatus ? (
+      <div className="detail-panel-header" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 'var(--space-sm)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', gap: 'var(--space-md)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', flex: 1, minWidth: 0 }}>
+            {showStatus && <span className={`status-dot ${status.color}`} style={{ flexShrink: 0 }} />}
+            <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {email.subject || "(No subject)"}
+            </div>
+          </div>
+          <div className="detail-panel-date" style={{ flexShrink: 0 }}>{formatSentDate(email.sent_at)}</div>
+        </div>
+        {showStatus && (
           <div className="detail-panel-status">
-            <span className={`status-dot ${status.color}`} />
             <span className={`status-badge ${status.color}`}>{status.label}</span>
             {email.is_bump === 1 && <span className="bump-badge">BUMP</span>}
           </div>
-        ) : (
-          <div />
         )}
-        <div className="detail-panel-date">{formatSentDate(email.sent_at)}</div>
       </div>
 
       <div className="detail-panel-content">
-        {/* Subject */}
-        <div className="detail-section">
-          <div className="detail-section-label">Subject</div>
-          <div className="detail-section-value detail-subject">{email.subject || "(No subject)"}</div>
-        </div>
 
         {/* From */}
         {(email.from_name || email.from_email) && (
