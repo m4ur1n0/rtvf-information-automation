@@ -4,7 +4,6 @@ import { useState, useMemo } from "react";
 import { addDays, format, isPast, isWithinInterval } from "date-fns";
 import type { ParsedEmailRow } from "@/lib/api";
 import { EmailDetailPanel } from "./EmailDetailPanel";
-import { formatSentDate } from "@/lib/format";
 
 type PetitionStatus = "active" | "deadline-soon" | "past" | "unclear";
 type StatusFilter = "all" | "active" | "deadline-soon" | "past";
@@ -18,22 +17,22 @@ interface StatusConfig {
 const STATUS_MAP: Record<PetitionStatus, StatusConfig> = {
   active: {
     label: "Active",
-    color: "var(--accent-casting)",
-    badgeClass: "status-active",
+    color: "var(--status-open)",
+    badgeClass: "status-open",
   },
   "deadline-soon": {
     label: "Deadline Soon",
-    color: "var(--accent-resource)",
-    badgeClass: "status-deadline-soon",
+    color: "var(--status-upcoming)",
+    badgeClass: "status-upcoming",
   },
   past: {
     label: "Past Deadline",
-    color: "var(--text-muted)",
-    badgeClass: "status-past",
+    color: "var(--status-closed)",
+    badgeClass: "status-closed",
   },
   unclear: {
     label: "No Deadline",
-    color: "var(--text-tertiary)",
+    color: "var(--status-unclear)",
     badgeClass: "status-unclear",
   },
 };

@@ -94,7 +94,7 @@ export default function PetitionsPage() {
                 </div>
               )}
               {deadlineSoonCount > 0 && (
-                <div className="stat-pill" style={{ background: "var(--accent-resource)", color: "var(--bg-primary)" }}>
+                <div className="stat-pill stat-deadline-soon">
                   <span className="stat-value">{deadlineSoonCount}</span>
                   <span className="stat-label">deadline soon</span>
                 </div>

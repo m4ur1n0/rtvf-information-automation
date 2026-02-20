@@ -63,14 +63,22 @@ function buildCalUrl(email: ParsedEmailRow): string | null {
   return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&details=${details}`;
 }
 
+function extractApplicationLink(email: ParsedEmailRow): string | null {
+  return email.application_url || email.rsvp_url || null;
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function GrantCard({
   email,
+  applicationUrl,
+  calendarUrl,
   isSelected,
   onSelect,
 }: {
   email: ParsedEmailRow;
+  applicationUrl: string | null;
+  calendarUrl: string | null;
   isSelected: boolean;
   onSelect: () => void;
 }) {
@@ -79,21 +87,14 @@ function GrantCard({
   const deadline = formatDeadline(email.deadline_at);
 
   return (
-    <button
-      onClick={onSelect}
+    <div
       style={{
         width: "100%",
-        padding: "var(--space-md) var(--space-lg)",
         background: isSelected ? "var(--bg-elevated)" : "var(--bg-tertiary)",
         border: `1px solid ${isSelected ? "var(--border-emphasis)" : "var(--border-subtle)"}`,
         borderRadius: "var(--radius-md)",
-        cursor: "pointer",
-        textAlign: "left",
-        color: "inherit",
-        display: "flex",
-        alignItems: "center",
-        gap: "var(--space-md)",
         transition: "all 0.15s ease",
+        overflow: "hidden",
       }}
       onMouseEnter={(e) => {
         if (!isSelected) {
@@ -108,61 +109,140 @@ function GrantCard({
         }
       }}
     >
-      {/* Status dot */}
-      <span className={`status-dot ${config.badgeClass}`} style={{ flexShrink: 0 }} />
+      <button
+        onClick={onSelect}
+        style={{
+          width: "100%",
+          padding: "var(--space-md) var(--space-lg)",
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          textAlign: "left",
+          color: "inherit",
+          display: "flex",
+          flexDirection: "column",
+          gap: "var(--space-sm)",
+        }}
+      >
+        {/* Main row: status dot + title + org + amount + deadline + chevron */}
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-md)" }}>
+          {/* Status dot */}
+          <span className={`status-dot ${config.badgeClass}`} style={{ flexShrink: 0 }} />
 
-      {/* Title + org */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{
-          fontSize: "14px",
-          fontWeight: 600,
-          color: "var(--text-primary)",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-          marginBottom: "2px",
-        }}>
-          {email.subject || "(No subject)"}
-        </div>
-        <div style={{
-          fontSize: "11px",
-          color: "var(--text-muted)",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}>
-          {email.from_name || email.from_email || ""}
-        </div>
-      </div>
+          {/* Title + org */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{
+              fontSize: "14px",
+              fontWeight: 600,
+              color: "var(--text-primary)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              marginBottom: "2px",
+            }}>
+              {email.subject || "(No subject)"}
+            </div>
+            <div style={{
+              fontSize: "11px",
+              color: "var(--text-muted)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}>
+              {email.from_name || email.from_email || ""}
+            </div>
+          </div>
 
-      {/* Amount + deadline */}
-      <div style={{ flexShrink: 0, textAlign: "right" }}>
-        {email.grant_amount && (
-          <div style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "12px",
-            fontWeight: 700,
-            color: "var(--accent-grant)",
-            marginBottom: "2px",
-          }}>
-            {email.grant_amount}
+          {/* Amount + deadline */}
+          <div style={{ flexShrink: 0, textAlign: "right" }}>
+            {email.grant_amount && (
+              <div style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "12px",
+                fontWeight: 700,
+                color: "var(--accent-grant)",
+                marginBottom: "2px",
+              }}>
+                {email.grant_amount}
+              </div>
+            )}
+            {deadline && (
+              <div style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "11px",
+                color: "var(--text-muted)",
+              }}>
+                {deadline}
+              </div>
+            )}
+          </div>
+
+          <span style={{ color: "var(--text-tertiary)", fontSize: "14px", flexShrink: 0 }}>
+            {isSelected ? "‹" : "›"}
+          </span>
+        </div>
+
+        {/* CTA buttons row */}
+        {(applicationUrl || calendarUrl) && (
+          <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
+            {applicationUrl && (
+              <a
+                href={applicationUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  padding: "4px 12px",
+                  background: "var(--accent-grant)",
+                  border: "1px solid var(--accent-grant)",
+                  borderRadius: "var(--radius-sm)",
+                  color: "var(--bg-primary)",
+                  textDecoration: "none",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  transition: "opacity 0.15s ease",
+                  whiteSpace: "nowrap",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.9"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
+              >
+                Apply
+              </a>
+            )}
+            {calendarUrl && (
+              <a
+                href={calendarUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  padding: "4px 10px",
+                  background: "var(--bg-elevated)",
+                  border: "1px solid var(--border-default)",
+                  borderRadius: "var(--radius-sm)",
+                  color: "var(--text-secondary)",
+                  textDecoration: "none",
+                  fontSize: "11px",
+                  fontFamily: "var(--font-mono)",
+                  transition: "all 0.15s ease",
+                  whiteSpace: "nowrap",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "var(--bg-secondary)";
+                  e.currentTarget.style.borderColor = "var(--border-emphasis)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "var(--bg-elevated)";
+                  e.currentTarget.style.borderColor = "var(--border-default)";
+                }}
+              >
+                +Cal
+              </a>
+            )}
           </div>
         )}
-        {deadline && (
-          <div style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "11px",
-            color: "var(--text-muted)",
-          }}>
-            {deadline}
-          </div>
-        )}
-      </div>
-
-      <span style={{ color: "var(--text-tertiary)", fontSize: "14px", flexShrink: 0 }}>
-        {isSelected ? "‹" : "›"}
-      </span>
-    </button>
+      </button>
+    </div>
   );
 }
 
@@ -414,6 +494,8 @@ export function GrantsDashboard({
                     <GrantCard
                       key={email.id}
                       email={email}
+                      applicationUrl={extractApplicationLink(email)}
+                      calendarUrl={buildCalUrl(email)}
                       isSelected={selectedId === email.id}
                       onSelect={() => handleSelect(email.id)}
                     />

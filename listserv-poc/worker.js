@@ -655,12 +655,9 @@ async function ingestOneMessage(env, m) {
 
     // ── Resolve deadline_at (epoch seconds) ───────────────────────────────
 
-    let deadline_at = null;
-    if (deadline_iso) {
-        deadline_at = parseISOToEpochSeconds(deadline_iso);
-    }
+    const combined = `${m.subject}\n${m.bodyText}`;
+    let deadline_at = resolveDeadlineAt(deadline_iso, deadline_text, combined);
     if (!deadline_at) {
-        const combined = `${m.subject}\n${m.bodyText}`;
         const extracted = extractDateCandidates(combined);
         if (extracted.length > 0) {
             deadline_at = parseISOToEpochSeconds(extracted[0].iso ?? null);
@@ -946,6 +943,56 @@ function shouldPreserveQuotedThreadContent(subject, rawBody, strippedBody) {
     return (isReplyOrForward || hasBumpSignal) &&
         hasQuotedHeader &&
         (strippedLen < 600 || mostlyStripped);
+}
+
+function parseTimeFromText(text) {
+    const t = String(text ?? "");
+    if (!t) return null;
+
+    const ampm = t.match(/\b(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*([aApP])\.?[mM]\.?\b/);
+    if (ampm) {
+        const hour12 = Number.parseInt(ampm[1], 10);
+        const minute = Number.parseInt(ampm[2] ?? "0", 10);
+        if (Number.isFinite(hour12) && Number.isFinite(minute)) {
+            const isPm = ampm[3].toLowerCase() === "p";
+            const hour24 = isPm ? ((hour12 % 12) + 12) : (hour12 % 12);
+            return { hour: hour24, minute, second: 0 };
+        }
+    }
+
+    const twentyFour = t.match(/\b([01]?\d|2[0-3]):([0-5]\d)\b/);
+    if (twentyFour) {
+        const hour = Number.parseInt(twentyFour[1], 10);
+        const minute = Number.parseInt(twentyFour[2], 10);
+        if (Number.isFinite(hour) && Number.isFinite(minute)) {
+            return { hour, minute, second: 0 };
+        }
+    }
+
+    return null;
+}
+
+function resolveDeadlineAt(deadlineIso, deadlineText, fallbackText) {
+    const iso = String(deadlineIso ?? "").trim();
+    if (!iso) return null;
+
+    const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(iso);
+    if (isDateOnly) {
+        const parsedTime = parseTimeFromText(deadlineText) || parseTimeFromText(fallbackText);
+        const hour = String(parsedTime?.hour ?? 23).padStart(2, "0");
+        const minute = String(parsedTime?.minute ?? 59).padStart(2, "0");
+        const second = String(parsedTime?.second ?? 59).padStart(2, "0");
+        return parseISOToEpochSeconds(`${iso}T${hour}:${minute}:${second}Z`);
+    }
+
+    const hasTimeNoZone =
+        /^\d{4}-\d{2}-\d{2}[tT]\d{2}:\d{2}/.test(iso) &&
+        !/(Z|[+-]\d{2}:\d{2})$/i.test(iso);
+    if (hasTimeNoZone) {
+        return parseISOToEpochSeconds(`${iso}Z`);
+    }
+
+    return parseISOToEpochSeconds(iso);
 }
 
 function parsePositiveInt(v) {

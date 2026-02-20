@@ -212,6 +212,16 @@
   background: rgba(143, 188, 143, 0.1);
 }
 
+.stat-pill.stat-deadline-soon {
+  border-color: var(--status-upcoming);
+  background: var(--status-upcoming);
+}
+
+.stat-pill.stat-deadline-soon .stat-value,
+.stat-pill.stat-deadline-soon .stat-label {
+  color: var(--bg-primary);
+}
+
 .stat-value {
   font-family: var(--font-mono);
   font-size: 18px;
@@ -1677,14 +1687,14 @@
 }
 
 .grants-list-main {
-  flex: 3;
+  flex: 3 1 0%;
   min-width: 0;
   display: flex;
   flex-direction: column;
 }
 
 .grants-detail-panel {
-  flex: 2;
+  flex: 2 1 0%;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -1707,6 +1717,8 @@
 
 .grants-sidebar-desktop {
   display: block;
+  flex: 2 1 0%;
+  min-width: 0;
 }
 
 @media (max-width: 900px) {

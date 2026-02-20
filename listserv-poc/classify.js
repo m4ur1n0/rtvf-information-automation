@@ -96,7 +96,7 @@ petition_location How/where to apply for crew (e.g. "Petitions at Shakesmart", "
 grant_amount    e.g. "up to $750" or "$750–$3,000", or null
 grant_status    "open", "upcoming", "closed", or "unclear" for GRANTs, null otherwise
 deadline_text   Deadline as written in the email, or null
-deadline_iso    Deadline in YYYY-MM-DD format if parseable, or null. IMPORTANT: Use the provided current time (CST) to interpret relative dates. For example, if current time shows Feb 20, 2026 and email says "by Feb 20th", the deadline is 2026-02-20, NOT 2026-02-19. If it says "by Feb 20th, 7pm", the date is still 2026-02-20 (the time is ignored for this field). If it says "this Friday" or "next week", calculate based on current time.
+deadline_iso    Deadline in ISO-8601 format if parseable, or null. If time is present in the email, include full datetime (e.g. 2026-02-25T23:59:00). If only a date is present, YYYY-MM-DD is acceptable. IMPORTANT: Use the provided current time (CST) to interpret relative dates. For example, if current time shows Feb 20, 2026 and email says "by Feb 20th", the deadline is 2026-02-20, NOT 2026-02-19. If it says "this Friday" or "next week", calculate based on current time.
 application_url Direct URL to apply/petition, or null
 eligibility_text Who is eligible as stated, or null
 grant_scope     "production", "post", "equipment", "travel", or "unclear" for GRANTs, null otherwise
@@ -1038,18 +1038,35 @@ export function extractDateCandidates(text) {
   const isoRe =
     /\b(20\d{2}-\d{2}-\d{2})(?:[tT ](\d{2}:\d{2}(?::\d{2})?)\s*(Z|[+-]\d{2}:\d{2})?)?\b/g;
   for (const m of text.matchAll(isoRe)) {
-    const iso = m[2] ? `${m[1]}T${m[2]}${m[3] ?? "Z"}` : `${m[1]}T00:00:00Z`;
+    const iso = m[2] ? `${m[1]}T${m[2]}${m[3] ?? "Z"}` : `${m[1]}T23:59:59Z`;
     out.push({ text: m[0], iso });
   }
 
   const monthRe =
-    /\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?(?:,)?\s+(20\d{2})\b/gi;
+    /\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?(?:,)?\s+(20\d{2})(?:\s*,?\s*(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(AM|PM))?\b/gi;
   for (const m of text.matchAll(monthRe)) {
     const mon = months[m[1].toLowerCase()];
     if (!mon) continue;
+    let hh = "23";
+    let mm = "59";
+    let ss = "59";
+    if (m[4]) {
+      const hour12 = Number.parseInt(m[4], 10);
+      const minute = Number.parseInt(m[5] ?? "0", 10);
+      const ampm = String(m[6] ?? "").toLowerCase();
+      if (Number.isFinite(hour12) && hour12 >= 1 && hour12 <= 12 && Number.isFinite(minute) && minute >= 0 && minute <= 59) {
+        const hour24 =
+          ampm === "am"
+            ? (hour12 % 12)
+            : ((hour12 % 12) + 12);
+        hh = String(hour24).padStart(2, "0");
+        mm = String(minute).padStart(2, "0");
+        ss = "00";
+      }
+    }
     out.push({
       text: m[0],
-      iso: `${m[3]}-${mon}-${m[2].padStart(2, "0")}T23:59:59Z`,
+      iso: `${m[3]}-${mon}-${m[2].padStart(2, "0")}T${hh}:${mm}:${ss}Z`,
     });
   }
 
