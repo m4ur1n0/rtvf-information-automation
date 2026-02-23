@@ -1,14 +1,18 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import { format, startOfWeek, endOfWeek, isToday, isBefore, addDays } from "date-fns";
 import { DollarSign, ClipboardList, CalendarDays, Package } from "lucide-react";
 import type { ParsedEmailRow } from "@/lib/api";
+import { EmailDetailPanel } from "./EmailDetailPanel";
 
 type Category = "grant" | "petition" | "event" | "equipment";
+type DetailType = "grant" | "crew" | "casting" | "resource" | "event" | "petition";
 
 interface TimelineItem {
   id: string;
+  emailId?: string;
+  detailType?: DetailType;
   title: string;
   category: Category;
   date: Date;
@@ -56,15 +60,6 @@ const STATIC_ITEMS: TimelineItem[] = [
   },
 ];
 
-function buildCalUrl(item: TimelineItem): string {
-  if (item.calendarUrl) return item.calendarUrl;
-  const start   = format(item.date, "yyyyMMdd");
-  const end     = format(addDays(item.date, 1), "yyyyMMdd");
-  const title   = encodeURIComponent(item.title);
-  const details = encodeURIComponent(`${item.detail}\n\n${item.description}`);
-  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&details=${details}`;
-}
-
 function emailsToTimelineItems(
   grantEmails:   ParsedEmailRow[],
   eventEmails:   ParsedEmailRow[],
@@ -89,6 +84,8 @@ function emailsToTimelineItems(
 
     items.push({
       id:          `grant-${e.id}`,
+      emailId:     e.id,
+      detailType:  "grant",
       title:       e.subject || "(No subject)",
       category:    "grant",
       date:        new Date(e.deadline_at * 1000),
@@ -114,6 +111,8 @@ function emailsToTimelineItems(
 
     items.push({
       id:          `event-${e.id}`,
+      emailId:     e.id,
+      detailType:  "event",
       title:       e.subject || "(No subject)",
       category:    "event",
       date:        new Date(e.deadline_at * 1000),
@@ -138,6 +137,8 @@ function emailsToTimelineItems(
 
     items.push({
       id:       `crew-${e.id}`,
+      emailId:  e.id,
+      detailType: "petition",
       title:    e.subject || "(No subject)",
       category: "petition",
       date:     new Date(e.deadline_at * 1000),
@@ -168,12 +169,36 @@ export function CalendarDashboard({
   const [activeCategories, setActiveCategories] = useState<Set<Category>>(
     new Set(["grant", "petition", "event", "equipment"])
   );
-  const [expandedItem, setExpandedItem] = useState<string | null>(null);
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [showPast, setShowPast] = useState(false);
+  const currentWeekRef = useRef<HTMLElement | null>(null);
 
   const allItems = useMemo(() => {
     const emailItems = emailsToTimelineItems(grantEmails, eventEmails, crewEmails);
     return [...STATIC_ITEMS, ...emailItems];
   }, [grantEmails, eventEmails, crewEmails]);
+
+  const emailById = useMemo(() => {
+    const map = new Map<string, ParsedEmailRow>();
+    for (const e of grantEmails) map.set(e.id, e);
+    for (const e of eventEmails) map.set(e.id, e);
+    for (const e of crewEmails) map.set(e.id, e);
+    return map;
+  }, [grantEmails, eventEmails, crewEmails]);
+
+  const selectedItem = useMemo(
+    () => allItems.find((i) => i.id === selectedItemId) ?? null,
+    [allItems, selectedItemId]
+  );
+
+  const selectedEmail = useMemo(
+    () => (selectedItem?.emailId ? emailById.get(selectedItem.emailId) ?? null : null),
+    [selectedItem, emailById]
+  );
+
+  const handleSelect = (id: string) => {
+    setSelectedItemId((prev) => (prev === id ? null : id));
+  };
 
   const toggleCategory = (cat: Category) => {
     setActiveCategories((prev) => {
@@ -183,12 +208,22 @@ export function CalendarDashboard({
     });
   };
 
+  const now = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
+  const currentWeekStart = useMemo(() => startOfWeek(now, { weekStartsOn: 1 }), [now]);
+  const todayWeekKey = format(currentWeekStart, "yyyy-MM-dd");
+
   const filteredItems = useMemo(
     () =>
       allItems
         .filter((item) => activeCategories.has(item.category))
+        .filter((item) => showPast || !isBefore(endOfWeek(item.date, { weekStartsOn: 1 }), currentWeekStart))
         .sort((a, b) => a.date.getTime() - b.date.getTime()),
-    [allItems, activeCategories]
+    [allItems, activeCategories, showPast, currentWeekStart]
+  );
+
+  const pastCount = useMemo(
+    () => allItems.filter((item) => activeCategories.has(item.category) && isBefore(endOfWeek(item.date, { weekStartsOn: 1 }), currentWeekStart)).length,
+    [allItems, activeCategories, currentWeekStart]
   );
 
   const weekGroups = useMemo(() => {
@@ -206,11 +241,18 @@ export function CalendarDashboard({
     return groups;
   }, [filteredItems]);
 
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  const todayWeekKey = format(startOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd");
-
   const upcomingCount = filteredItems.filter((i) => !isBefore(i.date, now)).length;
+
+  const togglePast = useCallback(() => {
+    setShowPast((prev) => {
+      if (prev) return false;
+      // When showing past, scroll to current week after render
+      requestAnimationFrame(() => {
+        currentWeekRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      return true;
+    });
+  }, []);
 
   return (
     <div className="dashboard-container" style={{ paddingTop: 0 }}>
@@ -285,256 +327,223 @@ export function CalendarDashboard({
             </button>
           );
         })}
-      </div>
 
-      {/* Timeline */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-xl)" }}>
-        {weekGroups.length === 0 && (
-          <div style={{
-            background: "var(--bg-secondary)", border: "1px solid var(--border-subtle)",
-            borderRadius: "var(--radius-md)", padding: "var(--space-xl)", textAlign: "center",
-          }}>
-            <div style={{ fontSize: "48px", opacity: 0.3, marginBottom: "var(--space-sm)" }}>∅</div>
-            <div style={{ fontSize: "13px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              No items match the selected filters
-            </div>
-          </div>
+        {pastCount > 0 && (
+          <button
+            onClick={togglePast}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: "6px",
+              padding: "5px 12px", fontSize: "13px",
+              fontFamily: "var(--font-display)",
+              borderRadius: "999px",
+              border: `1px solid ${showPast ? "var(--text-muted)" : "var(--border-subtle)"}`,
+              background: showPast ? "var(--bg-tertiary)" : "var(--bg-secondary)",
+              color: showPast ? "var(--text-primary)" : "var(--text-muted)",
+              cursor: "pointer", transition: "all 0.15s ease", fontWeight: 500,
+              marginLeft: "auto",
+            }}
+          >
+            <span>{showPast ? "Hide past" : "Show past"}</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-muted)" }}>
+              {pastCount}
+            </span>
+          </button>
         )}
-
-        {weekGroups.map((group) => {
-          const weekKey      = format(group.weekStart, "yyyy-MM-dd");
-          const isCurrentWeek = weekKey === todayWeekKey;
-          const isPastWeek   = isBefore(group.weekEnd, now);
-
-          return (
-            <section key={weekKey} style={{ opacity: isPastWeek ? 0.5 : 1 }}>
-              {/* Week Header */}
-              <div style={{
-                display: "flex", alignItems: "center", gap: "var(--space-md)",
-                marginBottom: "var(--space-md)", paddingBottom: "var(--space-sm)",
-                borderBottom: `2px solid ${isCurrentWeek ? "var(--accent-crew)" : "var(--border-subtle)"}`,
-              }}>
-                <h2 style={{
-                  fontSize: "14px", fontWeight: 700,
-                  color: isCurrentWeek ? "var(--accent-crew)" : "var(--text-primary)",
-                  textTransform: "uppercase", letterSpacing: "0.04em", fontFamily: "var(--font-mono)",
-                }}>
-                  {format(group.weekStart, "MMM d")} – {format(group.weekEnd, "MMM d, yyyy")}
-                </h2>
-                {isCurrentWeek && (
-                  <span style={{
-                    fontSize: "10px", fontWeight: 700, textTransform: "uppercase",
-                    letterSpacing: "0.08em", color: "var(--bg-primary)",
-                    background: "var(--accent-crew)", padding: "2px 8px",
-                    borderRadius: "var(--radius-sm)",
-                  }}>
-                    This Week
-                  </span>
-                )}
-                {isPastWeek && (
-                  <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>
-                    Past
-                  </span>
-                )}
-                <span style={{ fontSize: "12px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", marginLeft: "auto" }}>
-                  {group.items.length} {group.items.length === 1 ? "item" : "items"}
-                </span>
-              </div>
-
-              {/* Week Items */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-sm)" }}>
-                {group.items.map((item) => {
-                  const config       = CATEGORY_CONFIG[item.category];
-                  const isPast       = isBefore(item.date, now);
-                  const isItemToday  = isToday(item.date);
-                  const isExpanded   = expandedItem === item.id;
-
-                  return (
-                    <div
-                      key={item.id}
-                      style={{
-                        background: "var(--bg-tertiary)",
-                        border: `1px solid ${isItemToday ? "var(--accent-crew)" : "var(--border-subtle)"}`,
-                        borderRadius: "var(--radius-md)",
-                        overflow: "hidden",
-                        transition: "all 0.2s ease",
-                        opacity: isPast ? 0.6 : 1,
-                        boxShadow: isItemToday ? "0 0 0 1px var(--accent-crew)" : "none",
-                      }}
-                    >
-                      <button
-                        onClick={() => setExpandedItem(isExpanded ? null : item.id)}
-                        style={{
-                          width: "100%", padding: "var(--space-md) var(--space-lg)",
-                          background: "transparent", border: "none", cursor: "pointer",
-                          textAlign: "left", color: "inherit",
-                          display: "flex", alignItems: "center", gap: "var(--space-md)",
-                          transition: "background 0.15s ease",
-                        }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-elevated)"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-                      >
-                        {/* Date column */}
-                        <div className="calendar-item-date" style={{ flexShrink: 0, width: "52px", textAlign: "center" }}>
-                          <div style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: isItemToday ? "var(--accent-crew)" : "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                            {format(item.date, "EEE")}
-                          </div>
-                          <div style={{ fontSize: "20px", fontWeight: 700, fontFamily: "var(--font-mono)", color: isItemToday ? "var(--accent-crew)" : "var(--text-primary)", lineHeight: 1.2 }}>
-                            {format(item.date, "d")}
-                          </div>
-                          <div style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>
-                            {format(item.date, "MMM")}
-                          </div>
-                        </div>
-
-                        {/* Category badge */}
-                        <div style={{
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          width: "28px", height: "28px", borderRadius: "var(--radius-sm)",
-                          color: "var(--bg-primary)",
-                          background: config.color, flexShrink: 0,
-                        }}>
-                          {config.icon}
-                        </div>
-
-                        {/* Title & detail */}
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{
-                            fontSize: "14px", fontWeight: 600, color: "var(--text-primary)",
-                            marginBottom: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                          }}>
-                            {item.title}
-                          </div>
-                          <div style={{
-                            fontSize: "12px", color: "var(--text-tertiary)",
-                            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                          }}>
-                            {item.detail}
-                          </div>
-                        </div>
-
-                        {isItemToday && (
-                          <span style={{
-                            fontSize: "10px", fontWeight: 700, textTransform: "uppercase",
-                            letterSpacing: "0.05em", color: "var(--accent-crew)",
-                            background: "rgba(124, 160, 196, 0.15)", padding: "2px 8px",
-                            borderRadius: "var(--radius-sm)", border: "1px solid var(--accent-crew)",
-                            flexShrink: 0,
-                          }}>
-                            Today
-                          </span>
-                        )}
-
-                        <span style={{
-                          fontSize: "16px", color: "var(--text-tertiary)",
-                          flexShrink: 0, fontFamily: "var(--font-mono)",
-                          width: "20px", textAlign: "center",
-                        }}>
-                          {isExpanded ? "−" : "+"}
-                        </span>
-                      </button>
-
-                      {/* Expanded details */}
-                      {isExpanded && (
-                        <div style={{
-                          padding: "var(--space-md) var(--space-lg)",
-                          paddingTop: 0,
-                          background: "var(--bg-secondary)",
-                          borderTop: "1px solid var(--border-subtle)",
-                          animation: "slideDown 0.2s ease",
-                        }}>
-                          <div style={{
-                            display: "flex", gap: "var(--space-lg)",
-                            alignItems: "flex-start", paddingTop: "var(--space-md)",
-                          }}>
-                            <div style={{ flex: 1 }}>
-                              <div style={{
-                                fontSize: "10px", textTransform: "uppercase",
-                                letterSpacing: "0.08em", color: "var(--text-muted)",
-                                marginBottom: "var(--space-xs)", fontWeight: 600,
-                              }}>
-                                Details
-                              </div>
-                              {item.description ? (
-                                <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.7, whiteSpace: "pre-line" }}>
-                                  {item.description}
-                                </div>
-                              ) : (
-                                <div style={{ fontSize: "12px", color: "var(--text-muted)", fontStyle: "italic" }}>
-                                  No additional details
-                                </div>
-                              )}
-
-                              <div style={{
-                                display: "flex", gap: "var(--space-md)",
-                                marginTop: "var(--space-lg)", alignItems: "center", flexWrap: "wrap",
-                              }}>
-                                <span style={{
-                                  fontSize: "11px", padding: "4px 8px",
-                                  borderRadius: "var(--radius-sm)",
-                                  background: `color-mix(in srgb, ${config.color} 15%, transparent)`,
-                                  color: config.color, border: `1px solid ${config.color}`,
-                                  fontFamily: "var(--font-mono)", textTransform: "uppercase",
-                                }}>
-                                  {config.label}
-                                </span>
-                                <span style={{ fontSize: "12px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>
-                                  {format(item.date, "EEEE, MMMM d, yyyy")}
-                                </span>
-                                {item.applicationUrl && (
-                                  <a
-                                    href={item.applicationUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    style={{
-                                      fontSize: "12px", color: "var(--accent-grant)",
-                                      textDecoration: "none", fontWeight: 600,
-                                    }}
-                                  >
-                                    Apply →
-                                  </a>
-                                )}
-                              </div>
-                            </div>
-
-                            <a
-                              href={buildCalUrl(item)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              title="Add to Google Calendar"
-                              style={{
-                                flexShrink: 0,
-                                display: "inline-flex", alignItems: "center",
-                                padding: "var(--space-sm) var(--space-md)",
-                                background: "var(--bg-elevated)", border: "1px solid var(--border-default)",
-                                borderRadius: "var(--radius-sm)", color: "var(--text-secondary)",
-                                fontSize: "12px", fontFamily: "var(--font-mono)", fontWeight: 500,
-                                textDecoration: "none", transition: "all 0.15s ease",
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.background   = config.color;
-                                e.currentTarget.style.color        = "var(--bg-primary)";
-                                e.currentTarget.style.borderColor  = config.color;
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.background   = "var(--bg-elevated)";
-                                e.currentTarget.style.color        = "var(--text-secondary)";
-                                e.currentTarget.style.borderColor  = "var(--border-default)";
-                              }}
-                            >
-                              +Cal
-                            </a>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          );
-        })}
       </div>
+
+      {/* Main layout */}
+      <div className="grants-layout">
+        {/* Left: timeline list */}
+        <div className="grants-list-main" style={{ display: "flex", flexDirection: "column", gap: "var(--space-xl)" }}>
+          {weekGroups.length === 0 && (
+            <div style={{
+              background: "var(--bg-secondary)", border: "1px solid var(--border-subtle)",
+              borderRadius: "var(--radius-md)", padding: "var(--space-xl)", textAlign: "center",
+            }}>
+              <div style={{ fontSize: "48px", opacity: 0.3, marginBottom: "var(--space-sm)" }}>∅</div>
+              <div style={{ fontSize: "13px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                No items match the selected filters
+              </div>
+            </div>
+          )}
+
+          {weekGroups.map((group) => {
+            const weekKey       = format(group.weekStart, "yyyy-MM-dd");
+            const isCurrentWeek = weekKey === todayWeekKey;
+            const isPastWeek    = isBefore(group.weekEnd, now);
+
+            return (
+              <section key={weekKey} ref={isCurrentWeek ? currentWeekRef : undefined} style={{ opacity: isPastWeek ? 0.5 : 1 }}>
+                {/* Week Header */}
+                <div style={{
+                  display: "flex", alignItems: "center", gap: "var(--space-md)",
+                  marginBottom: "var(--space-md)", paddingBottom: "var(--space-sm)",
+                  borderBottom: `2px solid ${isCurrentWeek ? "var(--accent-crew)" : "var(--border-subtle)"}`,
+                }}>
+                  <h2 style={{
+                    fontSize: "14px", fontWeight: 700,
+                    color: isCurrentWeek ? "var(--accent-crew)" : "var(--text-primary)",
+                    textTransform: "uppercase", letterSpacing: "0.04em", fontFamily: "var(--font-mono)",
+                  }}>
+                    {format(group.weekStart, "MMM d")} – {format(group.weekEnd, "MMM d, yyyy")}
+                  </h2>
+                  {isCurrentWeek && (
+                    <span style={{
+                      fontSize: "10px", fontWeight: 700, textTransform: "uppercase",
+                      letterSpacing: "0.08em", color: "var(--bg-primary)",
+                      background: "var(--accent-crew)", padding: "2px 8px",
+                      borderRadius: "var(--radius-sm)",
+                    }}>
+                      This Week
+                    </span>
+                  )}
+                  {isPastWeek && (
+                    <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>
+                      Past
+                    </span>
+                  )}
+                  <span style={{ fontSize: "12px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", marginLeft: "auto" }}>
+                    {group.items.length} {group.items.length === 1 ? "item" : "items"}
+                  </span>
+                </div>
+
+                {/* Week Items */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-sm)" }}>
+                  {group.items.map((item) => {
+                    const config      = CATEGORY_CONFIG[item.category];
+                    const isPast      = isBefore(item.date, now);
+                    const isItemToday = isToday(item.date);
+                    const isSelected  = selectedItemId === item.id;
+
+                    return (
+                      <div
+                        key={item.id}
+                        style={{
+                          background: isSelected ? "var(--bg-elevated)" : "var(--bg-tertiary)",
+                          border: `1px solid ${isSelected ? "var(--border-emphasis)" : isItemToday ? "var(--accent-crew)" : "var(--border-subtle)"}`,
+                          borderRadius: "var(--radius-md)",
+                          overflow: "hidden",
+                          transition: "all 0.15s ease",
+                          opacity: isPast ? 0.6 : 1,
+                          boxShadow: isItemToday ? "0 0 0 1px var(--accent-crew)" : "none",
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isSelected) {
+                            e.currentTarget.style.borderColor = "var(--border-default)";
+                            e.currentTarget.style.background  = "var(--bg-elevated)";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isSelected) {
+                            e.currentTarget.style.borderColor = isItemToday ? "var(--accent-crew)" : "var(--border-subtle)";
+                            e.currentTarget.style.background  = "var(--bg-tertiary)";
+                          }
+                        }}
+                      >
+                        <button
+                          onClick={() => handleSelect(item.id)}
+                          style={{
+                            width: "100%", padding: "var(--space-md) var(--space-lg)",
+                            background: "transparent", border: "none", cursor: "pointer",
+                            textAlign: "left", color: "inherit",
+                            display: "flex", alignItems: "center", gap: "var(--space-md)",
+                          }}
+                        >
+                          {/* Date column */}
+                          <div className="calendar-item-date" style={{ flexShrink: 0, width: "52px", textAlign: "center" }}>
+                            <div style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: isItemToday ? "var(--accent-crew)" : "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                              {format(item.date, "EEE")}
+                            </div>
+                            <div style={{ fontSize: "20px", fontWeight: 700, fontFamily: "var(--font-mono)", color: isItemToday ? "var(--accent-crew)" : "var(--text-primary)", lineHeight: 1.2 }}>
+                              {format(item.date, "d")}
+                            </div>
+                            <div style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>
+                              {format(item.date, "MMM")}
+                            </div>
+                          </div>
+
+                          {/* Category badge */}
+                          <div style={{
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            width: "28px", height: "28px", borderRadius: "var(--radius-sm)",
+                            color: "var(--bg-primary)",
+                            background: config.color, flexShrink: 0,
+                          }}>
+                            {config.icon}
+                          </div>
+
+                          {/* Title & detail */}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{
+                              fontSize: "14px", fontWeight: 600, color: "var(--text-primary)",
+                              marginBottom: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                            }}>
+                              {item.title}
+                            </div>
+                            <div style={{
+                              fontSize: "12px", color: "var(--text-tertiary)",
+                              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                            }}>
+                              {item.detail}
+                            </div>
+                          </div>
+
+                          {isItemToday && (
+                            <span style={{
+                              fontSize: "10px", fontWeight: 700, textTransform: "uppercase",
+                              letterSpacing: "0.05em", color: "var(--accent-crew)",
+                              background: "rgba(124, 160, 196, 0.15)", padding: "2px 8px",
+                              borderRadius: "var(--radius-sm)", border: "1px solid var(--accent-crew)",
+                              flexShrink: 0,
+                            }}>
+                              Today
+                            </span>
+                          )}
+
+                          <span style={{ color: "var(--text-tertiary)", fontSize: "14px", flexShrink: 0 }}>
+                            {isSelected ? "‹" : "›"}
+                          </span>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+
+        {/* Right: detail sidebar (desktop) */}
+        <div className="grants-sidebar-desktop">
+          {selectedEmail && selectedItem ? (
+            <div className="grants-detail-panel">
+              <EmailDetailPanel email={selectedEmail} type={selectedItem.detailType!} />
+            </div>
+          ) : (
+            <div className="grants-detail-panel">
+              <EmailDetailPanel email={null} type="event" />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Mobile bottom-sheet drawer */}
+      {selectedEmail && selectedItem && (
+        <div
+          className="grants-modal-overlay"
+          onClick={() => setSelectedItemId(null)}
+        >
+          <div className="grants-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div style={{
+              width: "40px", height: "4px",
+              background: "var(--border-emphasis)",
+              borderRadius: "9999px",
+              margin: "10px auto 0",
+            }} />
+            <EmailDetailPanel email={selectedEmail} type={selectedItem.detailType!} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
