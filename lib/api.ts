@@ -267,7 +267,7 @@ export async function fetchPetitions(params: FetchPetitionsParams = {}): Promise
 
 export async function fetchEvents(params: FetchListParams = {}): Promise<ParsedEmailRow[]> {
   const { limit = 25, offset, summary, q, since, until } = params;
-  return fetchEmailRows("/api/events", { limit, offset, summary: summary ? "true" : undefined, q, since, until });
+  return fetchEmailRows("/api/timeline", { limit, offset, summary: summary ? "true" : undefined, q, since, until });
 }
 
 export async function fetchResources(params: FetchListParams = {}): Promise<ParsedEmailRow[]> {

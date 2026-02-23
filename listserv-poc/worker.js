@@ -186,7 +186,7 @@ export default {
             return jsonResponse(rows);
         }
 
-        if (req.method === "GET" && url.pathname === "/api/events") {
+        if (req.method === "GET" && url.pathname === "/api/timeline") {
             const summary = url.searchParams.get("summary") === "true";
             const rows = await listProjectedEmails(env, url, {
                 category: "EVENT",
