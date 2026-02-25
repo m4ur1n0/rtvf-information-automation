@@ -381,6 +381,10 @@ async function main() {
       process.stdout.write(
         `  ${dim("Apply:")}     ${result.application_url}\n`,
       );
+    if (result.script_url)
+      process.stdout.write(
+        `  ${dim("Script:")}    ${result.script_url}\n`,
+      );
     if (result.eligibility_text)
       process.stdout.write(
         `  ${dim("Elig:")}      ${result.eligibility_text}\n`,

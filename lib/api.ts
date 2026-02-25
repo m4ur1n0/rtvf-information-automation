@@ -37,6 +37,7 @@ export interface EmailRow {
 
   // Unified deadline (epoch seconds) — works for crew deadlines, grant deadlines, event dates
   deadline_at: number | null;
+  script_url: string | null;
 
   // LLM-extracted: grants
   grant_amount: string | null;
