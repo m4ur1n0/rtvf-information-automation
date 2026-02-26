@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { addDays, format, isPast, isWithinInterval } from "date-fns";
 import type { ParsedEmailRow } from "@/lib/api";
 import { EmailDetailPanel } from "./EmailDetailPanel";
+import { GoogleCalendarLink } from "./GoogleCalendarLink";
 
 type PetitionStatus = "active" | "deadline-soon" | "past" | "unclear";
 type StatusFilter = "all" | "active" | "deadline-soon" | "past";
@@ -501,36 +502,7 @@ function PetitionCard({
                 Script
               </a>
             )}
-            {calendarUrl && (
-              <a
-                href={calendarUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  padding: "4px 10px",
-                  background: "var(--bg-elevated)",
-                  border: "1px solid var(--border-default)",
-                  borderRadius: "var(--radius-sm)",
-                  color: "var(--text-secondary)",
-                  textDecoration: "none",
-                  fontSize: "11px",
-                  fontFamily: "var(--font-mono)",
-                  transition: "all 0.15s ease",
-                  whiteSpace: "nowrap",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "var(--bg-secondary)";
-                  e.currentTarget.style.borderColor = "var(--border-emphasis)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "var(--bg-elevated)";
-                  e.currentTarget.style.borderColor = "var(--border-default)";
-                }}
-              >
-                +Cal
-              </a>
-            )}
+            {calendarUrl && <GoogleCalendarLink url={calendarUrl} />}
           </div>
         </div>
       </button>
