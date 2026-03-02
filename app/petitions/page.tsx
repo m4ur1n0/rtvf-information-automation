@@ -3,12 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchPetitions, type ParsedEmailRow } from "@/lib/api";
 import { PetitionsDashboard } from "@/components/PetitionsDashboard";
+import { CreatePetitionModal } from "@/components/CreatePetitionModal";
 import { isPast, addDays, isWithinInterval } from "date-fns";
 
 export default function PetitionsPage() {
   const [emails, setEmails] = useState<ParsedEmailRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | undefined>(undefined);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,6 +53,40 @@ export default function PetitionsPage() {
       cancelled = true;
     };
   }, []);
+
+  // Handle hash navigation
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.slice(1); // Remove #
+      if (hash) {
+        setSelectedId(hash);
+        // Scroll to petition after a short delay to allow rendering
+        setTimeout(() => {
+          const element = document.getElementById(`petition-${hash}`);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 100);
+      } else {
+        setSelectedId(null);
+      }
+    };
+
+    // Handle initial hash on load
+    handleHashChange();
+
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  const handleCreateSuccess = (opportunityId: string) => {
+    setShowCreateModal(false);
+    // Navigate to the new petition
+    window.location.hash = opportunityId;
+    // Refresh petition list to show the new one
+    window.location.reload();
+  };
 
   const activeCount = useMemo(() => {
     return emails.filter((e) => {
@@ -103,13 +140,26 @@ export default function PetitionsPage() {
                 <span className="stat-value">{emails.length}</span>
                 <span className="stat-label">total</span>
               </div>
+              <button
+                className="create-petition-button"
+                onClick={() => setShowCreateModal(true)}
+              >
+                + New Petition
+              </button>
             </div>
           </div>
           <p className="dashboard-subtitle">Film production crew calls from the RTVF listserv</p>
         </div>
       </header>
 
-      <PetitionsDashboard emails={emails} error={error} />
+      <PetitionsDashboard emails={emails} error={error} selectedId={selectedId} />
+
+      {showCreateModal && (
+        <CreatePetitionModal
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={handleCreateSuccess}
+        />
+      )}
     </div>
   );
 }

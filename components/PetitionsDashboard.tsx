@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { addDays, format, isPast, isWithinInterval } from "date-fns";
 import type { ParsedEmailRow } from "@/lib/api";
 import { EmailDetailPanel } from "./EmailDetailPanel";
@@ -617,13 +617,22 @@ function ResourcesSidebar() {
 export function PetitionsDashboard({
   emails,
   error,
+  selectedId: externalSelectedId,
 }: {
   emails: ParsedEmailRow[];
   error?: string;
+  selectedId?: string | null;
 }) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(externalSelectedId || null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [roleFilter, setRoleFilter] = useState<string>("all");
+
+  // Update internal state when external selectedId changes
+  useEffect(() => {
+    if (externalSelectedId !== undefined) {
+      setSelectedId(externalSelectedId);
+    }
+  }, [externalSelectedId]);
 
   const petitionsWithMeta = useMemo(() => {
     return emails
@@ -692,7 +701,17 @@ export function PetitionsDashboard({
   };
 
   const handleSelect = (id: string) => {
-    setSelectedId((prev) => (prev === id ? null : id));
+    setSelectedId((prev) => {
+      const newId = prev === id ? null : id;
+      // Update URL hash
+      if (newId) {
+        window.location.hash = newId;
+      } else {
+        // Clear hash without scrolling
+        history.pushState("", document.title, window.location.pathname + window.location.search);
+      }
+      return newId;
+    });
   };
 
   return (
@@ -918,15 +937,16 @@ export function PetitionsDashboard({
                   }}
                 >
                   {group.map((petition) => (
-                    <PetitionCard
-                      key={petition.email.id}
-                      email={petition.email}
-                      roles={petition.roles}
-                      applicationUrl={petition.applicationUrl}
-                      calendarUrl={petition.calendarUrl}
-                      isSelected={selectedId === petition.email.id}
-                      onSelect={() => handleSelect(petition.email.id)}
-                    />
+                    <div key={petition.email.id} id={`petition-${petition.email.id}`}>
+                      <PetitionCard
+                        email={petition.email}
+                        roles={petition.roles}
+                        applicationUrl={petition.applicationUrl}
+                        calendarUrl={petition.calendarUrl}
+                        isSelected={selectedId === petition.email.id}
+                        onSelect={() => handleSelect(petition.email.id)}
+                      />
+                    </div>
                   ))}
                 </div>
               </section>

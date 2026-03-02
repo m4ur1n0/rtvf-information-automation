@@ -473,6 +473,118 @@ export default {
             return badRequest("expected application/json (EmailEngine webhook) or text/csv (bulk import)");
         }
 
+        // ─── POST /api/petitions/insert ────────────────────────────────────────────
+        if (req.method === "POST" && url.pathname === "/api/petitions/insert") {
+            if (!authOk(req, env)) return unauthorized();
+
+            let data;
+            try {
+                data = await req.json();
+            } catch {
+                return badRequest("invalid JSON body");
+            }
+
+            // Validate required fields
+            if (!data.id || !data.senderEmail || !data.filmTitle) {
+                return badRequest("missing required fields: id, senderEmail, filmTitle");
+            }
+
+            const now = nowSec();
+
+            try {
+                // Parse deadline
+                const deadlineAt = data.deadline ? parseISOToEpochSeconds(data.deadline) : null;
+
+                // Insert into emails table
+                await env.DATABASE_BINDING.prepare(`
+                    INSERT OR REPLACE INTO emails (
+                        id, subject, body_text, body_html, from_email, from_name, reply_to,
+                        sent_at, category, tags_json, confidence, reasons_json, is_bump,
+                        film_title, logline, production_type, director_name, shoot_dates_text,
+                        petition_location, deadline_at, application_url, roles_json,
+                        created_at, updated_at, source, listserv, provider_message_id
+                    ) VALUES (
+                        ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14,
+                        ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27
+                    )
+                `).bind(
+                    data.id,
+                    `[PETITION] ${data.filmTitle}`,
+                    data.emailBodyText || '',
+                    data.emailBodyHtml || '',
+                    data.senderEmail,
+                    data.senderName || '',
+                    data.senderEmail, // replyTo same as sender
+                    data.sentAt || now,
+                    'CREW_CALL', // category
+                    JSON.stringify([]), // tags_json (empty for user-created)
+                    1.0, // confidence (user-created = 100%)
+                    JSON.stringify(['USER_CREATED']), // reasons_json
+                    0, // is_bump
+                    data.filmTitle,
+                    data.logline || '',
+                    data.productionType || '',
+                    data.directorName || '',
+                    data.shootDates || '',
+                    data.location || '',
+                    deadlineAt,
+                    data.applicationUrl || '',
+                    JSON.stringify(data.roles || []),
+                    now, // created_at
+                    now, // updated_at
+                    'user_submission', // source
+                    'rtvf-l', // listserv
+                    data.messageId || '' // provider_message_id
+                ).run();
+
+                // Determine if casting
+                const isCasting = (data.roles || []).some(role =>
+                    ['Actor', 'Extras'].includes(role)
+                ) ? 1 : 0;
+
+                // Insert into petition_posts table
+                await env.DATABASE_BINDING.prepare(`
+                    INSERT OR REPLACE INTO petition_posts (
+                        email_id, title, film_title, production_type, logline,
+                        shoot_dates_text, petition_location, is_casting, is_bump,
+                        deadline_at, classifier_confidence, created_at, updated_at
+                    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+                `).bind(
+                    data.id,
+                    data.filmTitle,
+                    data.filmTitle,
+                    data.productionType || '',
+                    data.logline || '',
+                    data.shootDates || '',
+                    data.location || '',
+                    isCasting,
+                    0, // is_bump
+                    deadlineAt,
+                    1.0, // classifier_confidence
+                    now,
+                    now
+                ).run();
+
+                // Insert roles
+                if (data.roles && Array.isArray(data.roles)) {
+                    for (const role of data.roles) {
+                        await env.DATABASE_BINDING.prepare(`
+                            INSERT OR REPLACE INTO email_roles (email_id, role) VALUES (?1, ?2)
+                        `).bind(data.id, role).run();
+                    }
+                }
+
+                return jsonResponse({ ok: true, id: data.id });
+
+            } catch (error) {
+                console.error('Database insert error:', error);
+                return jsonResponse(
+                    { ok: false, error: error.message || 'Database insert failed' },
+                    { status: 500 }
+                );
+            }
+        }
+
         return jsonResponse({ ok: false, error: "not found" }, { status: 404 });
     },
 
