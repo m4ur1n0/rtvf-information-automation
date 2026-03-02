@@ -9,7 +9,6 @@ export interface EmailData {
   subject: string;
   bodyHtml: string;
   bodyText: string;
-  images: string[]; // base64 data URLs
   listServiceId: string;
   petitionLink: string;
 }
@@ -21,6 +20,9 @@ export interface EmailResult {
 }
 
 export async function sendPetitionEmail(data: EmailData): Promise<EmailResult> {
+  // Simulate embedding listServiceId in email body (like production does)
+  const finalText = `${data.bodyText}\n\n---\n${data.petitionLink}\n\nlist_service_id: ${data.listServiceId}`;
+
   console.log('[EMAIL STUB] Would send email:', {
     to: data.to,
     replyTo: data.replyTo,
@@ -28,9 +30,10 @@ export async function sendPetitionEmail(data: EmailData): Promise<EmailResult> {
     headers: {
       'X-ListService-ID': data.listServiceId,
     },
-    bodyPreview: data.bodyText.substring(0, 100) + '...',
-    imageCount: data.images.length,
+    bodyPreview: finalText.substring(0, 100) + '...',
+    htmlPreview: data.bodyHtml.substring(0, 100) + '...',
     petitionLink: data.petitionLink,
+    listServiceId: data.listServiceId,
   });
 
   // Simulate API delay

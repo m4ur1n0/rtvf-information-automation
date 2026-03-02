@@ -10,35 +10,20 @@ export async function sendPetitionEmail(data: EmailData): Promise<EmailResult> {
   try {
     const resend = new Resend(process.env.RESEND_API_KEY);
 
-    // Convert base64 images to attachments
-    const attachments = data.images.map((img, idx) => {
-      // Extract base64 content and determine file type
-      const matches = img.match(/^data:image\/(\w+);base64,(.+)$/);
-      if (!matches) {
-        console.warn(`Invalid image data URL at index ${idx}`);
-        return null;
-      }
-
-      const [, extension, content] = matches;
-
-      return {
-        filename: `image-${idx + 1}.${extension}`,
-        content: content,
-      };
-    }).filter((att): att is NonNullable<typeof att> => att !== null);
-
-    // Embed petition link in HTML body
+    // Embed petition link and listServiceId in HTML body
+    // Images are already embedded inline in the HTML as base64 data URLs
     const finalHtml = `
       ${data.bodyHtml}
       <hr />
       <p><a href="${data.petitionLink}">View this petition online</a></p>
+      <p style="color: #999; font-size: 11px;">list_service_id: ${data.listServiceId}</p>
     `;
 
-    const finalText = `${data.bodyText}\n\n---\n${data.petitionLink}`;
+    const finalText = `${data.bodyText}\n\n---\n${data.petitionLink}\n\nlist_service_id: ${data.listServiceId}`;
 
     // Send email via Resend
     const result = await resend.emails.send({
-      from: process.env.PETITION_FROM_EMAIL || 'petitions@yourdomain.com',
+      from: process.env.PETITION_FROM_EMAIL || "listservice@resend.dev",
       to: data.to,
       replyTo: data.replyTo,
       subject: data.subject,
@@ -47,7 +32,6 @@ export async function sendPetitionEmail(data: EmailData): Promise<EmailResult> {
       headers: {
         'X-ListService-ID': data.listServiceId,
       },
-      attachments,
     });
 
     if (result.error) {

@@ -35,7 +35,6 @@ export function CreatePetitionModal({ onClose, onSuccess }: CreatePetitionModalP
   const [customRole, setCustomRole] = useState('');
   const [emailBodyHtml, setEmailBodyHtml] = useState('');
   const [emailBodyText, setEmailBodyText] = useState('');
-  const [images, setImages] = useState<string[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -82,16 +81,13 @@ export function CreatePetitionModal({ onClose, onSuccess }: CreatePetitionModalP
     const body = generateEmailBody(formData);
     setEmailBodyText(body);
     setEmailBodyHtml(`<p>${body.split('\n').join('</p><p>')}</p>`);
+    setEmailBodyHtml(`<div>${emailBodyHtml} <p>`)
     setStep('email');
   };
 
   const handleEmailChange = (html: string, text: string) => {
     setEmailBodyHtml(html);
     setEmailBodyText(text);
-  };
-
-  const handleImageAdd = (dataUrl: string) => {
-    setImages(prev => [...prev, dataUrl]);
   };
 
   const handleNextToReview = () => {
@@ -113,7 +109,6 @@ export function CreatePetitionModal({ onClose, onSuccess }: CreatePetitionModalP
           deadline: formData.deadline?.toISOString(),
           emailBodyHtml,
           emailBodyText,
-          images,
         }),
       });
 
@@ -296,7 +291,7 @@ export function CreatePetitionModal({ onClose, onSuccess }: CreatePetitionModalP
                   type="text"
                   value={customRole}
                   onChange={(e) => setCustomRole(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddCustomRole())}
+                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddCustomRole())}
                   placeholder="Add custom role..."
                   style={{ flex: 1 }}
                 />
@@ -310,9 +305,9 @@ export function CreatePetitionModal({ onClose, onSuccess }: CreatePetitionModalP
                 </button>
               </div>
 
-              {formData.roles.filter(r => !COMMON_ROLES.includes(r as any)).length > 0 && (
+              {formData.roles.filter(r => !(COMMON_ROLES as readonly string[]).includes(r)).length > 0 && (
                 <div className="custom-roles-list" style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                  {formData.roles.filter(r => !COMMON_ROLES.includes(r as any)).map(role => (
+                  {formData.roles.filter(r => !(COMMON_ROLES as readonly string[]).includes(r)).map(role => (
                     <span key={role} className="custom-role-tag">
                       {role}
                       <button
@@ -335,17 +330,12 @@ export function CreatePetitionModal({ onClose, onSuccess }: CreatePetitionModalP
           <div className="modal-body">
             <p className="step-description">
               Edit the email body below. You can paste images directly (Cmd+V / Ctrl+V) or use the image button.
+              Images will appear inline where you place them.
             </p>
             <EmailBodyEditor
               initialContent={emailBodyText}
               onChange={handleEmailChange}
-              onImageAdd={handleImageAdd}
             />
-            {images.length > 0 && (
-              <div className="images-attached">
-                {images.length} image{images.length > 1 ? 's' : ''} attached
-              </div>
-            )}
           </div>
         )}
 

@@ -62,23 +62,34 @@ export function generateEmailBody(formData: PetitionFormData): string {
   parts.push('');
   if (formData.productionType) {
     parts.push(`Production Type: ${formData.productionType}`);
+    parts.push('\n');
   }
   if (formData.directorName) {
     parts.push(`Director: ${formData.directorName}`);
+    parts.push('\n');
+
   }
   if (formData.shootDates) {
     parts.push(`Shoot Dates: ${formData.shootDates}`);
+    parts.push('\n');
+
   }
   if (formData.location) {
     parts.push(`Location: ${formData.location}`);
+    parts.push('\n');
+
   }
 
   // Roles
   if (formData.roles.length > 0) {
     parts.push('');
     parts.push('Roles Needed:');
+    parts.push('\n');
+
     formData.roles.forEach(role => {
       parts.push(`• ${role}`);
+      parts.push('\n');
+
     });
   }
 

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
-import { sendPetitionEmail } from '@/lib/email-stub'; // Change to @/lib/email-sender for production
-import { insertPetitionToDatabase } from '@/lib/db-writer';
+// import { sendPetitionEmail } from '@/lib/email-stub'; // Change to @/lib/email-sender for production
+import { sendPetitionEmail } from '@/lib/email-sender';
+// import { insertPetitionToDatabase } from '@/lib/db-writer'; // Disabled during testing
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,17 +27,22 @@ export async function POST(request: NextRequest) {
     const petitionLink = `${siteUrl}/petitions/#${opportunityId}`;
 
     // Prepare email subject
-    const subject = `[PETITION] ${body.filmTitle}`;
+    const subject = `[SEEKING PEOPLE] ${body.filmTitle}`;
 
     // Send email
+    // TESTING MODE: Currently sends ONLY to creator's email for testing
+    // DO NOT uncomment the line below until ready for production
     const result = await sendPetitionEmail({
-      to: process.env.PETITION_RECIPIENT_EMAIL || 'rtvf-l@list.northwestern.edu',
+      // PRODUCTION (COMMENTED OUT): Uncomment this line to send to actual listserv
+      // to: process.env.PETITION_RECIPIENT_EMAIL || 'rtvf-l@list.northwestern.edu',
+
+      // TESTING: Send only to petition creator for testing
+      to: body.senderEmail,
       replyTo: body.senderEmail,
       subject,
       bodyHtml: body.emailBodyHtml,
       bodyText: body.emailBodyText,
-      images: body.images || [],
-      listServiceId: process.env.LISTSERVICE_ID || 'user-created-petition',
+      listServiceId: opportunityId,
       petitionLink,
     });
 
@@ -47,10 +53,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Insert into database
+    // TESTING MODE: Database insert disabled during testing
+    // Uncomment the code below when ready to save petitions to database
+    /*
     // Parse deadline if provided
     const deadline = body.deadline ? new Date(body.deadline) : null;
 
-    // Insert into database
     try {
       await insertPetitionToDatabase({
         id: opportunityId,
@@ -76,6 +85,12 @@ export async function POST(request: NextRequest) {
       // We'll still return success but log the error
       console.warn('[API] Email sent but database insert failed. Manual sync may be needed.');
     }
+    */
+    console.log('[TESTING] Skipping database insert. Petition data:', {
+      id: opportunityId,
+      filmTitle: body.filmTitle,
+      senderEmail: body.senderEmail,
+    });
 
     return NextResponse.json({
       ok: true,

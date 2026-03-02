@@ -9,10 +9,9 @@ import { useEffect } from 'react';
 interface EmailBodyEditorProps {
   initialContent: string;
   onChange: (html: string, text: string) => void;
-  onImageAdd: (dataUrl: string) => void;
 }
 
-export function EmailBodyEditor({ initialContent, onChange, onImageAdd }: EmailBodyEditorProps) {
+export function EmailBodyEditor({ initialContent, onChange }: EmailBodyEditorProps) {
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -31,7 +30,7 @@ export function EmailBodyEditor({ initialContent, onChange, onImageAdd }: EmailB
       attributes: {
         class: 'email-editor-content',
       },
-      handlePaste: (view, event) => {
+      handlePaste: (_view, event) => {
         const items = event.clipboardData?.items;
         if (!items) return false;
 
@@ -45,9 +44,7 @@ export function EmailBodyEditor({ initialContent, onChange, onImageAdd }: EmailB
             reader.onload = (e) => {
               const dataUrl = e.target?.result as string;
               if (dataUrl) {
-                // Add to images array
-                onImageAdd(dataUrl);
-                // Insert into editor
+                // Insert image inline in editor
                 editor?.chain().focus().setImage({ src: dataUrl }).run();
               }
             };
@@ -126,7 +123,7 @@ export function EmailBodyEditor({ initialContent, onChange, onImageAdd }: EmailB
               reader.onload = (event) => {
                 const dataUrl = event.target?.result as string;
                 if (dataUrl) {
-                  onImageAdd(dataUrl);
+                  // Insert image inline in editor
                   editor.chain().focus().setImage({ src: dataUrl }).run();
                 }
               };
