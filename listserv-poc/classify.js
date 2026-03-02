@@ -92,12 +92,13 @@ production_type e.g. "PPSL Film", "MAG-funded", "Senior Directing Film", "Sitcom
 director_name   Film director name if explicitly stated in the message body (e.g. "Director: Jane Doe"), or null
 roles_mentioned Array of all specific job titles mentioned, or null (e.g. ["DP","Sound Designer","Editor"])
 shoot_dates_text Filming schedule as written in the email, or null
-petition_location How/where to apply for crew (e.g. "Petitions at Shakesmart", "Fill out this form: URL"), or null
+petition_location Where/when petitions happen (e.g. "Petitions at Shakesmart"), or null. Do NOT put links here.
 grant_amount    e.g. "up to $750" or "$750–$3,000", or null
 grant_status    "open", "upcoming", "closed", or "unclear" for GRANTs, null otherwise
 deadline_text   Deadline as written in the email, or null
 deadline_iso    Deadline in ISO-8601 format if parseable, or null. If time is present in the email, include full datetime (e.g. 2026-02-25T23:59:00). If only a date is present, YYYY-MM-DD is acceptable. IMPORTANT: Use the provided current time (CST) to interpret relative dates. For example, if current time shows Feb 20, 2026 and email says "by Feb 20th", the deadline is 2026-02-20, NOT 2026-02-19. If it says "this Friday" or "next week", calculate based on current time.
-application_url Direct URL to apply/petition, or null
+application_url Direct URL to apply/petition, or null. MUST be a full http(s) URL (never plain text like "apply here").
+script_url      Direct URL to script/sides/treatment for a petition, or null. MUST be a full http(s) URL.
 eligibility_text Who is eligible as stated, or null
 grant_scope     "production", "post", "equipment", "travel", or "unclear" for GRANTs, null otherwise
 event_date_text When the event happens, or null
@@ -106,9 +107,9 @@ rsvp_url        RSVP URL or instructions, or null
 
 ═══ LINK RULES (VERY IMPORTANT) ═══
 - Ignore listserv unsubscribe/admin links (for example links containing SUBED1=RTVF, wa.exe unsubscribe pages, or "To unsubscribe from the RTVF list").
-- Never use unsubscribe links for application_url, rsvp_url, or petition_location.
+- Never use unsubscribe links for application_url, script_url, or rsvp_url.
 - Prefer direct destination links (Google Form, SignUpGenius, official application page), not security-wrapper URLs.
-- If no valid action link exists, set application_url / rsvp_url to null.`;
+- If no valid action link exists, set application_url / script_url / rsvp_url to null.`;
 
 // ─── response_json schema ─────────────────────────────────────────────────────
 // Passed to Cerebras as response_format.json_schema.schema.
@@ -206,6 +207,7 @@ export const LLM_JSON_SCHEMA = {
     deadline_text: { anyOf: [{ type: "string" }, { type: "null" }] },
     deadline_iso: { anyOf: [{ type: "string" }, { type: "null" }] },
     application_url: { anyOf: [{ type: "string" }, { type: "null" }] },
+    script_url: { anyOf: [{ type: "string" }, { type: "null" }] },
     eligibility_text: { anyOf: [{ type: "string" }, { type: "null" }] },
     grant_scope: {
       anyOf: [
@@ -240,6 +242,7 @@ export const LLM_JSON_SCHEMA = {
     "deadline_text",
     "deadline_iso",
     "application_url",
+    "script_url",
     "eligibility_text",
     "grant_scope",
     "event_date_text",
@@ -491,6 +494,10 @@ export async function classifyWithLLM(apiKey, subject, bodyText, options = {}) {
   }
 
   parsed.application_url = _sanitizeActionUrl(parsed.application_url);
+  if (!parsed.application_url && typeof parsed.petition_location === "string") {
+    parsed.application_url = _extractFirstActionUrl(parsed.petition_location);
+  }
+  parsed.script_url = _sanitizeActionUrl(parsed.script_url);
   parsed.rsvp_url = _sanitizeActionUrl(parsed.rsvp_url);
 
   // Attach raw token usage for observability
@@ -750,6 +757,7 @@ function _pack(category, tags, confidence, reasons, deadlines, contacts) {
     deadline_text: null,
     deadline_iso: null,
     application_url: null,
+    script_url: null,
     eligibility_text: null,
     grant_scope: null,
     event_date_text: null,
@@ -934,6 +942,13 @@ function _sanitizeActionUrl(rawUrl) {
   if (!normalized) return null;
   if (_isUnsubscribeNoiseUrl(normalized)) return null;
   return normalized;
+}
+
+function _extractFirstActionUrl(text) {
+  if (typeof text !== "string" || !text.trim()) return null;
+  const match = text.match(/\bhttps?:\/\/[^\s)<>"']+/i);
+  if (!match) return null;
+  return _sanitizeActionUrl(match[0]);
 }
 
 /** Remove quoted reply chains so the LLM only sees the "new content" portion */

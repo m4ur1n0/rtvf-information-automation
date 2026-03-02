@@ -11,6 +11,19 @@ interface EmailDetailPanelProps {
   showTags?: boolean;
 }
 
+function toHttpUrl(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
 export function EmailDetailPanel({
   email,
   type,
@@ -175,11 +188,14 @@ export function EmailDetailPanel({
 
   const renderCrewMeta = () => {
     if (type !== "crew" && type !== "casting" && type !== "petition") return null;
+    const petitionLocationUrl = toHttpUrl(email.petition_location);
+    const applicationUrl = toHttpUrl(email.application_url);
+    const scriptUrl = toHttpUrl(email.script_url);
     const hasAny =
       email.film_title || email.logline || email.production_type ||
-      (type === "casting" && email.director_name) ||
+      ((type === "casting" || type === "petition") && email.director_name) ||
       (email.roles_mentioned && email.roles_mentioned.length > 0) ||
-      email.shoot_dates_text || email.petition_location || deadlineDisplay;
+      email.shoot_dates_text || email.petition_location || applicationUrl || scriptUrl || deadlineDisplay;
     if (!hasAny) return null;
 
     return (
@@ -231,7 +247,50 @@ export function EmailDetailPanel({
           {email.petition_location && (
             <div className="detail-meta-row">
               <span className="detail-meta-key">Petition at</span>
-              <span className="detail-meta-val">{email.petition_location}</span>
+              <span className="detail-meta-val">
+                {petitionLocationUrl ? (
+                  <a
+                    href={petitionLocationUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: "var(--accent-casting)", wordBreak: "break-all" }}
+                  >
+                    {email.petition_location}
+                  </a>
+                ) : (
+                  email.petition_location
+                )}
+              </span>
+            </div>
+          )}
+          {applicationUrl && (
+            <div className="detail-meta-row detail-meta-row-full">
+              <span className="detail-meta-key">Apply Link</span>
+              <span className="detail-meta-val">
+                <a
+                  href={applicationUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "var(--accent-casting)", wordBreak: "break-all" }}
+                >
+                  {applicationUrl}
+                </a>
+              </span>
+            </div>
+          )}
+          {scriptUrl && (
+            <div className="detail-meta-row detail-meta-row-full">
+              <span className="detail-meta-key">Script</span>
+              <span className="detail-meta-val">
+                <a
+                  href={scriptUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "var(--accent-casting)", wordBreak: "break-all" }}
+                >
+                  {scriptUrl}
+                </a>
+              </span>
             </div>
           )}
           {deadlineDisplay && (

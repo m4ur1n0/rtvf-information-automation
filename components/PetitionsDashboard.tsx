@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { addDays, format, isPast, isWithinInterval } from "date-fns";
 import type { ParsedEmailRow } from "@/lib/api";
 import { EmailDetailPanel } from "./EmailDetailPanel";
+import { GoogleCalendarLink } from "./GoogleCalendarLink";
 
 type PetitionStatus = "active" | "deadline-soon" | "past" | "unclear";
 type StatusFilter = "all" | "active" | "deadline-soon" | "past";
@@ -85,40 +86,25 @@ function inferRolesFromEmail(email: ParsedEmailRow): string[] {
   return uniqueStrings(inferred);
 }
 
-function extractUrlsFromText(text: string): string[] {
-  const matches = text.match(/https?:\/\/[^\s<>"'`)\]]+/gi) ?? [];
-  return uniqueStrings(matches.map((raw) => raw.replace(/[.,;!?]+$/, "")));
-}
-
-function scoreApplicationLink(url: string): number {
-  const host = (() => {
-    try {
-      return new URL(url).hostname.toLowerCase();
-    } catch {
-      return "";
-    }
-  })();
-  if (!host) return 0;
-  if (host.includes("calendly.com")) return 100;
-  if (host.includes("signupgenius.com")) return 90;
-  if (host.includes("forms.gle")) return 80;
-  if (host.includes("google.com") && host.includes("forms")) return 75;
-  if (host.includes("airtable.com")) return 70;
-  if (host.includes("typeform.com")) return 70;
-  return 10;
+function toHttpUrl(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
 }
 
 function extractApplicationLink(email: ParsedEmailRow): string | null {
-  const candidates = uniqueStrings([
-    ...(email.application_url ? [email.application_url] : []),
-    ...(email.rsvp_url ? [email.rsvp_url] : []),
-    ...extractUrlsFromText(email.body_html ?? ""),
-    ...extractUrlsFromText(email.body_text ?? ""),
-  ]);
-  if (candidates.length === 0) return null;
-  return [...candidates].sort(
-    (a, b) => scoreApplicationLink(b) - scoreApplicationLink(a),
-  )[0];
+  return toHttpUrl(email.application_url) ?? toHttpUrl(email.petition_location);
+}
+
+function extractScriptLink(email: ParsedEmailRow): string | null {
+  return toHttpUrl(email.script_url);
 }
 
 function parseMailbox(raw: string | null | undefined): {
@@ -210,6 +196,7 @@ interface PetitionCardProps {
   email: ParsedEmailRow;
   roles: string[];
   applicationUrl: string | null;
+  scriptUrl: string | null;
   calendarUrl: string | null;
   isSelected: boolean;
   onSelect: () => void;
@@ -219,6 +206,7 @@ function PetitionCard({
   email,
   roles,
   applicationUrl,
+  scriptUrl,
   calendarUrl,
   isSelected,
   onSelect,
@@ -227,6 +215,7 @@ function PetitionCard({
   const config = STATUS_MAP[status];
   const deadline = formatDeadline(email.deadline_at);
   const contact = resolveContact(email);
+  const petitionLocationUrl = toHttpUrl(email.petition_location);
 
   return (
     <div
@@ -351,7 +340,19 @@ function PetitionCard({
             {email.petition_location && (
               <div>
                 <span style={{ fontWeight: 600 }}>Apply:</span>{" "}
-                {email.petition_location}
+                {petitionLocationUrl ? (
+                  <a
+                    href={petitionLocationUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ color: "var(--accent-casting)", textDecoration: "underline" }}
+                  >
+                    {email.petition_location}
+                  </a>
+                ) : (
+                  email.petition_location
+                )}
               </div>
             )}
           </div>
@@ -480,36 +481,28 @@ function PetitionCard({
                 Apply
               </a>
             )}
-            {calendarUrl && (
+            {scriptUrl && (
               <a
-                href={calendarUrl}
+                href={scriptUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
                 style={{
                   padding: "4px 10px",
                   background: "var(--bg-elevated)",
-                  border: "1px solid var(--border-default)",
+                  border: "1px solid var(--accent-casting)",
                   borderRadius: "var(--radius-sm)",
-                  color: "var(--text-secondary)",
+                  color: "var(--accent-casting)",
                   textDecoration: "none",
                   fontSize: "11px",
-                  fontFamily: "var(--font-mono)",
-                  transition: "all 0.15s ease",
+                  fontWeight: 600,
                   whiteSpace: "nowrap",
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "var(--bg-secondary)";
-                  e.currentTarget.style.borderColor = "var(--border-emphasis)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "var(--bg-elevated)";
-                  e.currentTarget.style.borderColor = "var(--border-default)";
-                }}
               >
-                +Cal
+                Script
               </a>
             )}
+            {calendarUrl && <GoogleCalendarLink url={calendarUrl} />}
           </div>
         </div>
       </button>
@@ -643,6 +636,7 @@ export function PetitionsDashboard({
           email,
           roles: inferRolesFromEmail(email),
           applicationUrl: extractApplicationLink(email),
+          scriptUrl: extractScriptLink(email),
           sender,
           calendarUrl: buildCalUrl(email, sender.email),
           status: resolveStatus(email),
@@ -937,16 +931,16 @@ export function PetitionsDashboard({
                   }}
                 >
                   {group.map((petition) => (
-                    <div key={petition.email.id} id={`petition-${petition.email.id}`}>
-                      <PetitionCard
-                        email={petition.email}
-                        roles={petition.roles}
-                        applicationUrl={petition.applicationUrl}
-                        calendarUrl={petition.calendarUrl}
-                        isSelected={selectedId === petition.email.id}
-                        onSelect={() => handleSelect(petition.email.id)}
-                      />
-                    </div>
+                    <PetitionCard
+                      key={petition.email.id}
+                      email={petition.email}
+                      roles={petition.roles}
+                      applicationUrl={petition.applicationUrl}
+                      scriptUrl={petition.scriptUrl}
+                      calendarUrl={petition.calendarUrl}
+                      isSelected={selectedId === petition.email.id}
+                      onSelect={() => handleSelect(petition.email.id)}
+                    />
                   ))}
                 </div>
               </section>

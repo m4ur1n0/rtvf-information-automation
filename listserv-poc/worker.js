@@ -78,6 +78,60 @@ export default {
             return jsonResponse({ ok: true, counts: { ...counts, all } });
         }
 
+        const inlineImageMatch = req.method === "GET"
+            ? url.pathname.match(/^\/api\/email\/([^/]+)\/inline\/(.+)$/)
+            : null;
+        if (inlineImageMatch) {
+            let emailId = null;
+            let cid = null;
+            try {
+                emailId = decodeURIComponent(inlineImageMatch[1]);
+                cid = normalizeContentId(decodeURIComponent(inlineImageMatch[2]));
+            } catch {
+                return badRequest("invalid inline image path");
+            }
+            if (!emailId || !cid) return badRequest("missing email id or cid");
+
+            const row = await env.DATABASE_BINDING.prepare(
+                `SELECT account, attachment_id, content_type
+                 FROM email_attachments
+                 WHERE email_id = ?1
+                   AND cid_normalized = ?2
+                   AND (embedded = 1 OR inline = 1)
+                 ORDER BY updated_at DESC
+                 LIMIT 1`
+            ).bind(emailId, cid).first();
+            if (!row) return jsonResponse({ ok: false, error: "inline image not found" }, { status: 404 });
+
+            const baseUrl = resolveEmailEngineBaseUrl(env);
+            const accessToken = resolveEmailEngineAccessToken(env);
+            if (!baseUrl || !accessToken) {
+                return jsonResponse({ ok: false, error: "EmailEngine not configured" }, { status: 503 });
+            }
+
+            const upstreamUrl = `${baseUrl}/v1/account/${encodeURIComponent(String(row.account))}/attachment/${encodeURIComponent(String(row.attachment_id))}`;
+            const upstream = await fetch(upstreamUrl, {
+                headers: { Authorization: `Bearer ${accessToken}` },
+            });
+
+            if (!upstream.ok) {
+                return jsonResponse({
+                    ok: false,
+                    error: `EmailEngine attachment fetch failed (${upstream.status})`,
+                }, { status: 502 });
+            }
+
+            const headers = {
+                ...corsHeaders(),
+                "cache-control": "public, max-age=3600, stale-while-revalidate=86400",
+                "content-type": upstream.headers.get("content-type") ?? row.content_type ?? "application/octet-stream",
+            };
+            return new Response(upstream.body, {
+                status: 200,
+                headers,
+            });
+        }
+
         if (req.method === "GET" && url.pathname === "/api/email") {
             const id = url.searchParams.get("id");
             if (!id) return badRequest("missing id");
@@ -105,7 +159,7 @@ export default {
                         e.roles_json
                     ) AS roles_json,
                     e.shoot_dates_text, e.petition_location, e.deadline_at,
-                    e.grant_amount, e.grant_status, e.application_url, e.eligibility_text, e.grant_scope,
+                    e.grant_amount, e.grant_status, e.application_url, e.script_url, e.eligibility_text, e.grant_scope,
                     e.event_date_text, e.event_location, e.rsvp_url,
                     e.llm_reasoning, e.classifier_version,
                     COALESCE(
@@ -138,6 +192,7 @@ export default {
             ).bind(id).first();
 
             if (!row) return jsonResponse({ ok: false, error: "not found" }, { status: 404 });
+            row.body_html = rewriteInlineCidSources(row.body_html, row.id, url.origin);
             return jsonResponse({ ok: true, rows: [row] });
         }
 
@@ -148,6 +203,7 @@ export default {
                 table: "grant_posts",
                 alias: "gp",
                 summary,
+                origin: url.origin,
                 projection: {
                     deadline_at: "gp.deadline_at",
                     grant_amount: "gp.grant_amount",
@@ -172,6 +228,7 @@ export default {
                 table: "petition_posts",
                 alias: "pp",
                 summary,
+                origin: url.origin,
                 projectionWhere,
                 projection: {
                     film_title: "pp.film_title",
@@ -180,6 +237,8 @@ export default {
                     director_name: "pp.director_name",
                     shoot_dates_text: "pp.shoot_dates_text",
                     petition_location: "pp.petition_location",
+                    application_url: "pp.application_url",
+                    script_url: "pp.script_url",
                     deadline_at: "pp.deadline_at",
                 },
             });
@@ -193,6 +252,7 @@ export default {
                 table: "event_posts",
                 alias: "ep",
                 summary,
+                origin: url.origin,
                 projection: {
                     deadline_at: "ep.deadline_at",
                     event_date_text: "ep.event_date_text",
@@ -210,6 +270,7 @@ export default {
                 table: "resource_posts",
                 alias: "rp",
                 summary,
+                origin: url.origin,
             });
             return jsonResponse(rows);
         }
@@ -221,6 +282,7 @@ export default {
                 table: "admin_posts",
                 alias: "ap",
                 summary,
+                origin: url.origin,
             });
             return jsonResponse(rows);
         }
@@ -315,7 +377,7 @@ export default {
                     e.film_title, e.logline, e.production_type, e.director_name,
                     ${rolesSelect},
                     e.shoot_dates_text, e.petition_location, e.deadline_at,
-                    e.grant_amount, e.grant_status, e.application_url, e.eligibility_text, e.grant_scope,
+                    e.grant_amount, e.grant_status, e.application_url, e.script_url, e.eligibility_text, e.grant_scope,
                     e.event_date_text, e.event_location, e.rsvp_url,
                     ${llmReasoningSelect}, e.classifier_version,
                     ${deadlinesSelect},
@@ -327,14 +389,15 @@ export default {
             );
 
             const res = await stmt.bind(...args, limit, offset).all();
+            const rows = rewriteInlineCidSourcesForRows(res.results, url.origin);
             logApiRequest(env, {
                 path: url.pathname,
                 query: Object.fromEntries(url.searchParams.entries()),
-                rows: Array.isArray(res.results) ? res.results.length : 0,
+                rows: Array.isArray(rows) ? rows.length : 0,
                 duration_ms: Date.now() - startedAt,
                 source: "emails",
             });
-            return jsonResponse({ ok: true, rows: res.results, limit, offset });
+            return jsonResponse({ ok: true, rows, limit, offset });
         }
 
         // ─── POST /webhook/email ──────────────────────────────────────────────────
@@ -373,6 +436,10 @@ export default {
                 const providerMessageId = data.messageId ?? data.id ?? null;
                 const sentAt = parseSentAtToEpochSeconds(data.date);
                 const listserv = payload.account ?? "emailengine";
+                let attachments = Array.isArray(data.attachments) ? data.attachments : [];
+                if (attachments.length === 0 && bodyHtml && /cid:/i.test(bodyHtml) && data.id) {
+                    attachments = await fetchEmailEngineAttachmentsForMessage(env, listserv, data.id);
+                }
 
                 const FIVE_MONTHS_SEC = 5 * 30 * 24 * 60 * 60;
                 const oldestAllowed = nowSec() - FIVE_MONTHS_SEC;
@@ -392,6 +459,7 @@ export default {
                     bodyText,
                     bodyHtml,
                     sentAt,
+                    attachments,
                 });
 
                 return jsonResponse({ ok: true, ...result });
@@ -450,6 +518,7 @@ export default {
                             bodyText,
                             bodyHtml,
                             sentAt,
+                            attachments: [],
                         });
 
                         if (result.deduped) deduped++;
@@ -612,6 +681,9 @@ export default {
             `DELETE FROM email_recipients WHERE email_id NOT IN (SELECT id FROM emails)`
         ).run();
         await env.DATABASE_BINDING.prepare(
+            `DELETE FROM email_attachments WHERE email_id NOT IN (SELECT id FROM emails)`
+        ).run();
+        await env.DATABASE_BINDING.prepare(
             `DELETE FROM grant_posts WHERE email_id NOT IN (SELECT id FROM emails)`
         ).run();
         await env.DATABASE_BINDING.prepare(
@@ -645,6 +717,7 @@ async function ingestOneMessage(env, m) {
     const createdAt = nowSec();
     const normalizedSender = normalizeSenderFields(m.fromEmail, m.fromName);
     const normalizedReplyTo = normalizeEmailAddress(m.replyTo);
+    const attachments = Array.isArray(m.attachments) ? m.attachments : [];
 
     const id = await (m.providerMessageId
         ? sha256Hex(m.providerMessageId)
@@ -654,6 +727,9 @@ async function ingestOneMessage(env, m) {
     const existing = await env.DATABASE_BINDING.prepare(`SELECT id FROM emails WHERE id = ?1`).bind(id).first();
     if (existing) {
         await env.DATABASE_BINDING.prepare(`UPDATE emails SET updated_at = ?2 WHERE id = ?1`).bind(id, createdAt).run();
+        if (attachments.length > 0) {
+            await writeEmailAttachments(env, id, m.listserv, attachments, createdAt);
+        }
         return { id, deduped: true };
     }
 
@@ -683,7 +759,7 @@ async function ingestOneMessage(env, m) {
     let category, tags, confidence, reasons;
     let film_title, logline, production_type, director_name, roles_mentioned;
     let shoot_dates_text, petition_location;
-    let grant_amount, grant_status, deadline_text, deadline_iso, application_url, eligibility_text, grant_scope;
+    let grant_amount, grant_status, deadline_text, deadline_iso, application_url, script_url, eligibility_text, grant_scope;
     let event_date_text, event_location, rsvp_url, llm_reasoning;
 
     if (llmResult) {
@@ -705,6 +781,7 @@ async function ingestOneMessage(env, m) {
         deadline_text = llmResult.deadline_text ?? null;
         deadline_iso = llmResult.deadline_iso ?? null;
         application_url = llmResult.application_url ?? null;
+        script_url = llmResult.script_url ?? null;
         eligibility_text = llmResult.eligibility_text ?? null;
         grant_scope = llmResult.grant_scope ?? null;
         event_date_text = llmResult.event_date_text ?? null;
@@ -731,6 +808,7 @@ async function ingestOneMessage(env, m) {
         deadline_text = regexResult.deadline_text ?? null;
         deadline_iso = regexResult.deadline_iso ?? null;
         application_url = null;
+        script_url = null;
         eligibility_text = null;
         grant_scope = regexResult.grant_scope ?? null;
         event_date_text = null;
@@ -800,7 +878,7 @@ async function ingestOneMessage(env, m) {
             deadlines_json, dates_mentioned_json, contacts_json,
             film_title, logline, production_type, director_name,
             roles_json, shoot_dates_text, petition_location, deadline_at,
-            grant_amount, grant_status, application_url, eligibility_text, grant_scope,
+            grant_amount, grant_status, application_url, script_url, eligibility_text, grant_scope,
             event_date_text, event_location, rsvp_url,
             llm_reasoning, classifier_version,
             created_at, updated_at
@@ -813,10 +891,10 @@ async function ingestOneMessage(env, m) {
             ?20, ?21, ?22,
             ?23, ?24, ?25, ?26,
             ?27, ?28, ?29, ?30,
-            ?31, ?32, ?33, ?34, ?35,
-            ?36, ?37, ?38,
-            ?39, ?40,
-            ?41, ?42
+            ?31, ?32, ?33, ?34, ?35, ?36,
+            ?37, ?38, ?39,
+            ?40, ?41,
+            ?42, ?43
         )`
     ).bind(
         id,
@@ -852,6 +930,7 @@ async function ingestOneMessage(env, m) {
         grant_amount,
         grant_status,
         application_url,
+        script_url,
         eligibility_text,
         grant_scope,
         event_date_text,
@@ -872,6 +951,9 @@ async function ingestOneMessage(env, m) {
         datesMentioned: deadlines,
         toEmails,
     });
+    if (attachments.length > 0) {
+        await writeEmailAttachments(env, id, m.listserv, attachments, createdAt);
+    }
 
     await upsertCategoryProjection(env, {
         emailId: id,
@@ -892,6 +974,7 @@ async function ingestOneMessage(env, m) {
         grantStatus: grant_status,
         deadlineText: deadline_text,
         applicationUrl: application_url,
+        scriptUrl: script_url,
         eligibilityText: eligibility_text,
         grantScope: grant_scope,
         eventDateText: event_date_text,
@@ -1114,6 +1197,88 @@ function parsePositiveInt(v) {
     return n;
 }
 
+function normalizeContentId(value) {
+    if (typeof value !== "string") return null;
+    let out = value.trim();
+    if (!out) return null;
+    out = out.replace(/^cid:/i, "").trim();
+    out = out.replace(/^<+/, "").replace(/>+$/, "").trim();
+    if (!out) return null;
+    return out.toLowerCase();
+}
+
+function makeInlineImageUrl(origin, emailId, cid) {
+    return `${origin}/api/email/${encodeURIComponent(String(emailId))}/inline/${encodeURIComponent(cid)}`;
+}
+
+function rewriteInlineCidSources(html, emailId, origin) {
+    if (typeof html !== "string" || !html) return html ?? null;
+    if (!emailId || !origin) return html;
+
+    return html.replace(/src\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/gi, (_m, _all, dquote, squote, bare) => {
+        const rawSrc = dquote ?? squote ?? bare ?? "";
+        const normalized = normalizeContentId(rawSrc);
+        if (!normalized) return `src="${rawSrc}"`;
+        if (!/^cid:/i.test(rawSrc.trim())) return `src="${rawSrc}"`;
+        return `src="${makeInlineImageUrl(origin, emailId, normalized)}"`;
+    });
+}
+
+function rewriteInlineCidSourcesForRows(rows, origin) {
+    if (!Array.isArray(rows)) return [];
+    return rows.map((row) => {
+        if (!row || typeof row !== "object") return row;
+        if (!row.body_html || !row.id) return row;
+        return {
+            ...row,
+            body_html: rewriteInlineCidSources(row.body_html, row.id, origin),
+        };
+    });
+}
+
+function resolveEmailEngineBaseUrl(env) {
+    const raw = String(
+        env.EMAILENGINE_API_BASE_URL ??
+        env.EMAILENGINE_BASE_URL ??
+        env.EMAILENGINE_URL ??
+        ""
+    ).trim();
+    if (!raw) return null;
+    return raw.endsWith("/") ? raw.slice(0, -1) : raw;
+}
+
+function resolveEmailEngineAccessToken(env) {
+    const token = String(
+        env.EMAILENGINE_ACCESS_TOKEN ??
+        env.EMAILENGINE_API_TOKEN ??
+        env.EMAILENGINE_TOKEN ??
+        ""
+    ).trim();
+    return token || null;
+}
+
+async function fetchEmailEngineAttachmentsForMessage(env, account, messageId) {
+    const baseUrl = resolveEmailEngineBaseUrl(env);
+    const accessToken = resolveEmailEngineAccessToken(env);
+    if (!baseUrl || !accessToken) return [];
+
+    const normalizedAccount = String(account ?? "").trim();
+    const normalizedMessageId = String(messageId ?? "").trim();
+    if (!normalizedAccount || !normalizedMessageId) return [];
+
+    const endpoint = `${baseUrl}/v1/account/${encodeURIComponent(normalizedAccount)}/message/${encodeURIComponent(normalizedMessageId)}`;
+    try {
+        const response = await fetch(endpoint, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!response.ok) return [];
+        const payload = await response.json();
+        return Array.isArray(payload?.attachments) ? payload.attachments : [];
+    } catch {
+        return [];
+    }
+}
+
 function shouldLogApiRequests(env) {
     return String(env.API_DEBUG_LOGS ?? "").toLowerCase() === "true";
 }
@@ -1225,6 +1390,7 @@ async function listProjectedEmails(env, url, opts) {
             ${col("grant_amount", "e.grant_amount")},
             ${col("grant_status", "e.grant_status")},
             ${col("application_url", "e.application_url")},
+            ${col("script_url", "e.script_url")},
             ${col("eligibility_text", "e.eligibility_text")},
             ${col("grant_scope", "e.grant_scope")},
             ${col("event_date_text", "e.event_date_text")},
@@ -1241,16 +1407,17 @@ async function listProjectedEmails(env, url, opts) {
     );
 
     const res = await stmt.bind(...args, limit, offset).all();
+    const rows = rewriteInlineCidSourcesForRows(res.results, opts.origin ?? url.origin);
     logApiRequest(env, {
         path: url.pathname,
         query: Object.fromEntries(url.searchParams.entries()),
         category: opts.category,
         table: opts.table,
-        rows: Array.isArray(res.results) ? res.results.length : 0,
+        rows: Array.isArray(rows) ? rows.length : 0,
         duration_ms: Date.now() - startedAt,
         source: "projection",
     });
-    return { ok: true, rows: res.results, limit, offset };
+    return { ok: true, rows, limit, offset };
 }
 
 function normalizeSubject(subject) {
@@ -1364,9 +1531,9 @@ async function upsertCategoryProjection(env, row) {
         await env.DATABASE_BINDING.prepare(
             `INSERT INTO petition_posts (
                 email_id, title, film_title, production_type, logline, director_name, shoot_dates_text,
-                petition_location, is_casting, is_bump, deadline_at,
+                petition_location, application_url, script_url, is_casting, is_bump, deadline_at,
                 classifier_confidence, created_at, updated_at
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?13)
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?15)
             ON CONFLICT(email_id) DO UPDATE SET
                 title=excluded.title,
                 film_title=excluded.film_title,
@@ -1375,6 +1542,8 @@ async function upsertCategoryProjection(env, row) {
                 director_name=excluded.director_name,
                 shoot_dates_text=excluded.shoot_dates_text,
                 petition_location=excluded.petition_location,
+                application_url=excluded.application_url,
+                script_url=excluded.script_url,
                 is_casting=excluded.is_casting,
                 is_bump=excluded.is_bump,
                 deadline_at=excluded.deadline_at,
@@ -1389,6 +1558,8 @@ async function upsertCategoryProjection(env, row) {
             row.directorName ?? null,
             row.shootDatesText ?? null,
             row.petitionLocation ?? null,
+            row.applicationUrl ?? null,
+            row.scriptUrl ?? null,
             isCasting ? 1 : 0,
             row.isBump ? 1 : 0,
             row.deadlineAt ?? null,
@@ -1539,6 +1710,58 @@ async function writeEmailRelations(env, emailId, payload) {
         await env.DATABASE_BINDING.prepare(
             `INSERT OR REPLACE INTO email_recipients (email_id, position, recipient_email) VALUES (?1, ?2, ?3)`
         ).bind(emailId, i, toEmails[i]).run();
+    }
+}
+
+async function writeEmailAttachments(env, emailId, account, attachments, updatedAt) {
+    if (!Array.isArray(attachments) || attachments.length === 0) return;
+    const normalizedAccount = String(account ?? "").trim() || "emailengine";
+    const timestamp = Number.isFinite(updatedAt) ? updatedAt : nowSec();
+
+    for (const attachment of attachments) {
+        if (!attachment || typeof attachment !== "object") continue;
+
+        const attachmentId = String(attachment.id ?? "").trim();
+        if (!attachmentId) continue;
+
+        const contentId = typeof attachment.contentId === "string" ? attachment.contentId.trim() : null;
+        const cidNormalized = normalizeContentId(contentId);
+        const contentType = typeof attachment.contentType === "string" ? attachment.contentType.trim() : null;
+        const filename = typeof attachment.filename === "string" ? attachment.filename.trim() : null;
+        const encodedSizeRaw = Number.parseInt(String(attachment.encodedSize ?? ""), 10);
+        const encodedSize = Number.isFinite(encodedSizeRaw) ? encodedSizeRaw : null;
+        const isEmbedded = attachment.embedded === true ? 1 : 0;
+        const isInline = attachment.inline === true ? 1 : 0;
+
+        await env.DATABASE_BINDING.prepare(
+            `INSERT INTO email_attachments (
+                email_id, account, attachment_id, content_id, cid_normalized,
+                content_type, filename, encoded_size, embedded, inline,
+                created_at, updated_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?11)
+            ON CONFLICT(email_id, attachment_id) DO UPDATE SET
+                account=excluded.account,
+                content_id=excluded.content_id,
+                cid_normalized=excluded.cid_normalized,
+                content_type=excluded.content_type,
+                filename=excluded.filename,
+                encoded_size=excluded.encoded_size,
+                embedded=excluded.embedded,
+                inline=excluded.inline,
+                updated_at=excluded.updated_at`
+        ).bind(
+            emailId,
+            normalizedAccount,
+            attachmentId,
+            contentId,
+            cidNormalized,
+            contentType,
+            filename,
+            encodedSize,
+            isEmbedded,
+            isInline,
+            timestamp
+        ).run();
     }
 }
 
