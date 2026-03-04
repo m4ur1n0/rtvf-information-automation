@@ -12,6 +12,7 @@ export default function PetitionsPage() {
   const [error, setError] = useState<string | undefined>(undefined);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -29,6 +30,7 @@ export default function PetitionsPage() {
             limit: pageSize,
             offset,
             summary: false,
+            q: searchQuery || undefined,
           });
           combined.push(...page);
           if (page.length < pageSize || combined.length >= 2000) break;
@@ -52,7 +54,7 @@ export default function PetitionsPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [searchQuery]);
 
   // Handle hash navigation
   useEffect(() => {
@@ -152,7 +154,13 @@ export default function PetitionsPage() {
         </div>
       </header>
 
-      <PetitionsDashboard emails={emails} error={error} selectedId={selectedId} />
+      <PetitionsDashboard
+        emails={emails}
+        error={error}
+        selectedId={selectedId}
+        searchQuery={searchQuery}
+        onSearchQueryChange={setSearchQuery}
+      />
 
       {showCreateModal && (
         <CreatePetitionModal

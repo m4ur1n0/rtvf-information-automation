@@ -7,7 +7,8 @@
  * Exports:
  *   LLM_SYSTEM_PROMPT   — system prompt string
  *   LLM_JSON_SCHEMA     — JSON schema used for structured model output
- *   classifyWithLLM     — async (apiKey, subject, bodyText) → parsed result
+ *   classifyWithNvidia  — async (apiKey, subject, bodyText) → parsed result (NVIDIA NIM primary)
+ *   classifyWithLLM     — async (apiKey, subject, bodyText) → parsed result (Cerebras fallback)
  *   classify            — sync  (subject, bodyText) → parsed result (regex fallback)
  *   stripQuotedEmail    — strip reply chains from plain text
  *   htmlToPlainText     — strip HTML tags to readable plain text
@@ -253,13 +254,162 @@ export const LLM_JSON_SCHEMA = {
 };
 
 export const LLM_MODEL = "gpt-oss-120b";
+export const NVIDIA_MODEL = "stepfun-ai/step-3.5-flash";
 const CEREBRAS_API_BASE = "https://api.cerebras.ai/v1";
+const NVIDIA_API_BASE = "https://integrate.api.nvidia.com/v1";
 const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 504]);
 const DEFAULT_MAX_ATTEMPTS = 4;
 const INITIAL_MAX_OUTPUT_TOKENS = 2048;
 const MAX_OUTPUT_TOKENS = 4096;
 
-// ─── LLM classifier (primary path) ───────────────────────────────────────────
+// ─── NVIDIA NIM classifier (primary path) ────────────────────────────────────
+
+/**
+ * @param {string} apiKey  NVIDIA NIM API key
+ * @param {string} subject Email subject line
+ * @param {string} bodyText Plain-text email body (pre-processed with stripQuotedEmail)
+ * @param {object} [options]
+ * @param {string} [options.model]
+ * @param {number} [options.maxAttempts]
+ * @param {number} [options.maxOutputTokens]
+ * @returns {Promise<object>} Validated classification result
+ */
+export async function classifyWithNvidia(apiKey, subject, bodyText, options = {}) {
+  if (!apiKey) throw new Error("NVIDIA_API_KEY not configured");
+
+  const model =
+    typeof options.model === "string" && options.model.trim()
+      ? options.model.trim()
+      : NVIDIA_MODEL;
+  const maxAttempts = Number.isFinite(options.maxAttempts)
+    ? Math.max(1, Math.trunc(options.maxAttempts))
+    : DEFAULT_MAX_ATTEMPTS;
+
+  let maxOutputTokens = Number.isFinite(options.maxOutputTokens)
+    ? Math.min(MAX_OUTPUT_TOKENS, Math.max(512, Math.trunc(options.maxOutputTokens)))
+    : INITIAL_MAX_OUTPUT_TOKENS;
+
+  const truncBody = (bodyText || "").slice(0, 2500);
+  const currentTime = new Date().toLocaleString('en-US', {
+    timeZone: 'America/Chicago',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+  const prompt = `Current time (CST): ${currentTime}\n\nSubject: ${subject}\n\nBody:\n${truncBody}`;
+  let parsed;
+  let usageMetadata = null;
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const response = await fetch(
+        `${NVIDIA_API_BASE}/chat/completions`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              {
+                role: "system",
+                content: LLM_SYSTEM_PROMPT,
+              },
+              {
+                role: "user",
+                content: prompt,
+              },
+            ],
+            temperature: 0.1,
+            top_p: 0.95,
+            max_tokens: maxOutputTokens,
+            chat_template_kwargs: { enable_thinking: false },
+            guided_json: LLM_JSON_SCHEMA,
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        const errText = await response.text().catch(() => "");
+        const retryable = RETRYABLE_STATUS_CODES.has(response.status);
+        if (retryable && attempt < maxAttempts) {
+          await _sleep(_retryDelayMs(attempt));
+          continue;
+        }
+        throw new Error(`NVIDIA API ${response.status}: ${errText.slice(0, 300)}`);
+      }
+
+      const data = await response.json();
+      usageMetadata = data.usage ?? null;
+      const finishReason = data.choices?.[0]?.finish_reason ?? null;
+      const rawContent = data.choices?.[0]?.message?.content ?? "";
+      const content =
+        typeof rawContent === "string"
+          ? rawContent
+          : Array.isArray(rawContent)
+            ? rawContent
+                .map((part) => {
+                  if (typeof part === "string") return part;
+                  if (part && typeof part === "object" && typeof part.text === "string") {
+                    return part.text;
+                  }
+                  return "";
+                })
+                .join("")
+                .trim()
+            : rawContent && typeof rawContent === "object"
+              ? JSON.stringify(rawContent)
+              : "";
+      if (!content) {
+        throw new Error(
+          `NVIDIA returned empty content (finishReason=${finishReason ?? "unknown"})`,
+        );
+      }
+
+      try {
+        parsed = _parseModelJson(content);
+      } catch (parseErr) {
+        const parseMsg = parseErr instanceof Error ? parseErr.message : String(parseErr);
+        const looksTruncated =
+          finishReason === "length" || /Unexpected end of JSON input/i.test(parseMsg);
+        if (attempt < maxAttempts) {
+          if (looksTruncated) {
+            maxOutputTokens = Math.min(MAX_OUTPUT_TOKENS, maxOutputTokens * 2);
+          }
+          await _sleep(_retryDelayMs(attempt));
+          continue;
+        }
+        throw new Error(
+          `LLM returned non-JSON (finishReason=${finishReason ?? "unknown"}): ${content.slice(0, 200)}`,
+        );
+      }
+
+      break;
+    } catch (err) {
+      lastError = err;
+      if (attempt >= maxAttempts) break;
+      if (err instanceof Error && /NVIDIA API \d+:/.test(err.message)) {
+        if (!/NVIDIA API (429|500|502|503|504):/.test(err.message)) break;
+      }
+      await _sleep(_retryDelayMs(attempt));
+    }
+  }
+
+  if (!parsed) {
+    throw lastError instanceof Error ? lastError : new Error("NVIDIA classification failed");
+  }
+
+  // Reuse the same validation/normalization as Cerebras path
+  return _validateClassification(parsed, usageMetadata);
+}
+
+// ─── Cerebras LLM classifier (fallback path) ─────────────────────────────────
 
 /**
  * @param {string} apiKey  Cerebras API key
@@ -409,9 +559,13 @@ export async function classifyWithLLM(apiKey, subject, bodyText, options = {}) {
     throw lastError instanceof Error ? lastError : new Error("LLM classification failed");
   }
 
-  // ── Coerce / fill missing fields ─────────────────────────────────────────
-  // Model sometimes invents a "metadata" wrapper or top-level extra keys; ignore them.
+  // Reuse the same validation/normalization as NVIDIA path
+  return _validateClassification(parsed, usageMetadata);
+}
 
+// ─── Shared validation for LLM classification results ────────────────────────
+
+function _validateClassification(parsed, usageMetadata) {
   const validCats = [
     "CREW_CALL",
     "GRANT",
@@ -424,7 +578,6 @@ export async function classifyWithLLM(apiKey, subject, bodyText, options = {}) {
   if (!validCats.includes(parsed.category)) parsed.category = "OTHER";
 
   if (!Array.isArray(parsed.tags)) parsed.tags = [];
-  // Discard any tags the model hallucinated outside the allowed enum
   const ALLOWED_TAGS = new Set([
     "GRANT_OPEN",
     "GRANT_UPCOMING",

@@ -6,6 +6,7 @@ import { addDays, format } from "date-fns";
 import type { ParsedEmailRow } from "@/lib/api";
 import { EmailDetailPanel } from "./EmailDetailPanel";
 import { GoogleCalendarLink } from "./GoogleCalendarLink";
+import { SearchBar, highlightMatches } from "./SearchBar";
 
 type GrantStatus = "open" | "upcoming" | "closed" | "unclear";
 type StatusFilter = "all" | "open" | "upcoming" | "closed";
@@ -74,12 +75,14 @@ function GrantCard({
   email,
   applicationUrl,
   calendarUrl,
+  searchQuery,
   isSelected,
   onSelect,
 }: {
   email: ParsedEmailRow;
   applicationUrl: string | null;
   calendarUrl: string | null;
+  searchQuery: string;
   isSelected: boolean;
   onSelect: () => void;
 }) {
@@ -141,7 +144,9 @@ function GrantCard({
               whiteSpace: "nowrap",
               marginBottom: "2px",
             }}>
-              {email.subject || "(No subject)"}
+              {searchQuery
+                ? highlightMatches(email.subject || "(No subject)", searchQuery)
+                : (email.subject || "(No subject)")}
             </div>
             <div style={{
               fontSize: "11px",
@@ -150,7 +155,9 @@ function GrantCard({
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
             }}>
-              {email.from_name || email.from_email || ""}
+              {searchQuery
+                ? highlightMatches(email.from_name || email.from_email || "", searchQuery)
+                : (email.from_name || email.from_email || "")}
             </div>
           </div>
 
@@ -298,7 +305,7 @@ function ResourcesSidebar() {
       onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.9"; }}
       onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
       >
-        View Full Timeline
+        View Full Deadlines
       </Link>
 
       <div style={{
@@ -329,9 +336,13 @@ function ResourcesSidebar() {
 export function GrantsDashboard({
   emails,
   error,
+  searchQuery,
+  onSearchQueryChange,
 }: {
   emails: ParsedEmailRow[];
   error?: string;
+  searchQuery: string;
+  onSearchQueryChange: (q: string) => void;
 }) {
   const [selectedId, setSelectedId]       = useState<string | null>(null);
   const [statusFilter, setStatusFilter]   = useState<StatusFilter>("all");
@@ -342,8 +353,13 @@ export function GrantsDashboard({
   );
 
   const filteredEmails = useMemo(() => {
-    if (statusFilter === "all") return emails;
-    return emails.filter((e) => resolveStatus(e) === statusFilter);
+    let result = emails;
+
+    if (statusFilter !== "all") {
+      result = result.filter((e) => resolveStatus(e) === statusFilter);
+    }
+
+    return result;
   }, [emails, statusFilter]);
 
   const grouped = useMemo(() => {
@@ -380,6 +396,14 @@ export function GrantsDashboard({
           Could not load grant data: {error}
         </div>
       )}
+
+      {/* Search */}
+      <div className="dashboard-search-row">
+        <SearchBar
+          onSearch={onSearchQueryChange}
+          placeholder="Search grants..."
+        />
+      </div>
 
       {/* Status Filter Bar */}
       <div style={{
@@ -468,6 +492,7 @@ export function GrantsDashboard({
                       email={email}
                       applicationUrl={extractApplicationLink(email)}
                       calendarUrl={buildCalUrl(email)}
+                      searchQuery={searchQuery}
                       isSelected={selectedId === email.id}
                       onSelect={() => handleSelect(email.id)}
                     />

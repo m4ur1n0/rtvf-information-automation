@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { addDays, format, isPast, isWithinInterval } from "date-fns";
 import type { ParsedEmailRow } from "@/lib/api";
 import { EmailDetailPanel } from "./EmailDetailPanel";
 import { GoogleCalendarLink } from "./GoogleCalendarLink";
+import { classifyRole, getAllDepartments, type RoleDepartment } from "@/lib/role-groups";
+import { SearchBar, highlightMatches } from "./SearchBar";
 
 type PetitionStatus = "active" | "deadline-soon" | "past" | "unclear";
 type StatusFilter = "all" | "active" | "deadline-soon" | "past";
@@ -198,6 +200,7 @@ interface PetitionCardProps {
   applicationUrl: string | null;
   scriptUrl: string | null;
   calendarUrl: string | null;
+  searchQuery: string;
   isSelected: boolean;
   onSelect: () => void;
 }
@@ -208,6 +211,7 @@ function PetitionCard({
   applicationUrl,
   scriptUrl,
   calendarUrl,
+  searchQuery,
   isSelected,
   onSelect,
 }: PetitionCardProps) {
@@ -279,7 +283,9 @@ function PetitionCard({
                 whiteSpace: "nowrap",
               }}
             >
-              {email.film_title || email.subject || "(No title)"}
+              {searchQuery
+                ? highlightMatches(email.film_title || email.subject || "(No title)", searchQuery)
+                : (email.film_title || email.subject || "(No title)")}
             </div>
           </div>
 
@@ -308,7 +314,9 @@ function PetitionCard({
               WebkitBoxOrient: "vertical",
             }}
           >
-            {email.logline}
+            {searchQuery
+              ? highlightMatches(email.logline, searchQuery)
+              : email.logline}
           </p>
         )}
 
@@ -611,21 +619,21 @@ export function PetitionsDashboard({
   emails,
   error,
   selectedId: externalSelectedId,
+  searchQuery,
+  onSearchQueryChange,
 }: {
   emails: ParsedEmailRow[];
   error?: string;
   selectedId?: string | null;
+  searchQuery: string;
+  onSearchQueryChange: (q: string) => void;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(externalSelectedId || null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [deptFilter, setDeptFilter] = useState<string>("all");
   const [roleFilter, setRoleFilter] = useState<string>("all");
-
-  // Update internal state when external selectedId changes
-  useEffect(() => {
-    if (externalSelectedId !== undefined) {
-      setSelectedId(externalSelectedId);
-    }
-  }, [externalSelectedId]);
+  const [expandedDept, setExpandedDept] = useState<string | null>(null);
+  const selectedIdValue = externalSelectedId ?? selectedId;
 
   const petitionsWithMeta = useMemo(() => {
     return emails
@@ -645,16 +653,33 @@ export function PetitionsDashboard({
   }, [emails]);
 
   const selectedPetition = useMemo(
-    () => petitionsWithMeta.find((p) => p.email.id === selectedId) ?? null,
-    [petitionsWithMeta, selectedId],
+    () => petitionsWithMeta.find((p) => p.email.id === selectedIdValue) ?? null,
+    [petitionsWithMeta, selectedIdValue],
   );
 
-  const allRoles = useMemo(() => {
-    const roles = new Set<string>();
-    for (const p of petitionsWithMeta) {
-      for (const role of p.roles) roles.add(role);
+  // Build department → { count, roles[] } map for filter UI
+  const departmentData = useMemo(() => {
+    const depts = getAllDepartments();
+    const deptMap = new Map<string, { dept: RoleDepartment; roles: Set<string>; count: number }>();
+    for (const d of depts) {
+      deptMap.set(d.id, { dept: d, roles: new Set(), count: 0 });
     }
-    return Array.from(roles).sort((a, b) => a.localeCompare(b));
+    for (const p of petitionsWithMeta) {
+      const seenDepts = new Set<string>();
+      for (const role of p.roles) {
+        const deptId = classifyRole(role);
+        const entry = deptMap.get(deptId);
+        if (entry) {
+          entry.roles.add(role);
+          if (!seenDepts.has(deptId)) {
+            entry.count++;
+            seenDepts.add(deptId);
+          }
+        }
+      }
+    }
+    // Filter out departments with no petitions
+    return Array.from(deptMap.values()).filter((d) => d.count > 0);
   }, [petitionsWithMeta]);
 
   const filteredPetitions = useMemo(() => {
@@ -664,15 +689,23 @@ export function PetitionsDashboard({
       result = result.filter((p) => p.status === statusFilter);
     }
 
-    if (roleFilter !== "all") {
-      const normalized = roleFilter.toLowerCase();
-      result = result.filter((p) =>
-        p.roles.some((r) => r.toLowerCase() === normalized),
-      );
+    if (deptFilter !== "all") {
+      if (roleFilter !== "all") {
+        // Specific role selected within a department
+        const normalized = roleFilter.toLowerCase();
+        result = result.filter((p) =>
+          p.roles.some((r) => r.toLowerCase() === normalized),
+        );
+      } else {
+        // Entire department selected — match any role in that department
+        result = result.filter((p) =>
+          p.roles.some((r) => classifyRole(r) === deptFilter),
+        );
+      }
     }
 
     return result.sort((a, b) => b.email.sent_at - a.email.sent_at);
-  }, [petitionsWithMeta, statusFilter, roleFilter]);
+  }, [petitionsWithMeta, statusFilter, deptFilter, roleFilter]);
 
   const grouped = useMemo(() => {
     const map: Record<PetitionStatus, typeof petitionsWithMeta> = {
@@ -696,7 +729,8 @@ export function PetitionsDashboard({
 
   const handleSelect = (id: string) => {
     setSelectedId((prev) => {
-      const newId = prev === id ? null : id;
+      const currentSelected = externalSelectedId ?? prev;
+      const newId = currentSelected === id ? null : id;
       // Update URL hash
       if (newId) {
         window.location.hash = newId;
@@ -726,6 +760,14 @@ export function PetitionsDashboard({
           Could not load petition data: {error}
         </div>
       )}
+
+      {/* Search */}
+      <div className="dashboard-search-row">
+        <SearchBar
+          onSearch={onSearchQueryChange}
+          placeholder="Search crew calls..."
+        />
+      </div>
 
       {/* Filter bars */}
       <div
@@ -795,81 +837,173 @@ export function PetitionsDashboard({
           )}
         </div>
 
-        {/* Role filter */}
-        {allRoles.length > 0 && (
+        {/* Department role filter — two-tier */}
+        {departmentData.length > 0 && (
           <div
             style={{
               display: "flex",
+              flexDirection: "column",
               gap: "var(--space-sm)",
-              alignItems: "center",
               padding: "var(--space-md)",
               background: "var(--bg-secondary)",
               border: "1px solid var(--border-subtle)",
               borderRadius: "var(--radius-md)",
-              flexWrap: "wrap",
             }}
           >
-            <label
+            {/* Department pills */}
+            <div
               style={{
-                fontSize: "12px",
-                color: "var(--text-tertiary)",
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                marginRight: "var(--space-xs)",
+                display: "flex",
+                gap: "var(--space-sm)",
+                alignItems: "center",
+                flexWrap: "wrap",
               }}
             >
-              Role:
-            </label>
-            <button
-              onClick={() => setRoleFilter("all")}
-              style={{
-                padding: "4px 12px",
-                fontSize: "12px",
-                fontFamily: "var(--font-mono)",
-                borderRadius: "9999px",
-                border: `1px solid ${roleFilter === "all" ? "var(--accent-casting)" : "var(--border-default)"}`,
-                background:
-                  roleFilter === "all"
-                    ? "var(--accent-casting)"
-                    : "var(--bg-tertiary)",
-                color:
-                  roleFilter === "all"
-                    ? "var(--bg-primary)"
-                    : "var(--text-secondary)",
-                cursor: "pointer",
-                transition: "all 0.15s ease",
-                textTransform: "uppercase",
-                letterSpacing: "0.03em",
-              }}
-            >
-              All Roles
-            </button>
-            {allRoles.map((role) => {
-              const active = roleFilter === role;
-              return (
-                <button
-                  key={role}
-                  onClick={() => setRoleFilter(role)}
-                  style={{
-                    padding: "4px 12px",
-                    fontSize: "12px",
-                    fontFamily: "var(--font-mono)",
-                    borderRadius: "9999px",
-                    border: `1px solid ${active ? "var(--accent-casting)" : "var(--border-default)"}`,
-                    background: active
+              <label
+                style={{
+                  fontSize: "12px",
+                  color: "var(--text-tertiary)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                  marginRight: "var(--space-xs)",
+                }}
+              >
+                Role:
+              </label>
+              <button
+                onClick={() => {
+                  setDeptFilter("all");
+                  setRoleFilter("all");
+                  setExpandedDept(null);
+                }}
+                style={{
+                  padding: "4px 12px",
+                  fontSize: "12px",
+                  fontFamily: "var(--font-mono)",
+                  borderRadius: "9999px",
+                  border: `1px solid ${deptFilter === "all" ? "var(--accent-casting)" : "var(--border-default)"}`,
+                  background:
+                    deptFilter === "all"
                       ? "var(--accent-casting)"
                       : "var(--bg-tertiary)",
-                    color: active
+                  color:
+                    deptFilter === "all"
                       ? "var(--bg-primary)"
                       : "var(--text-secondary)",
-                    cursor: "pointer",
-                    transition: "all 0.15s ease",
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.03em",
+                }}
+              >
+                All Roles
+              </button>
+              {departmentData.map(({ dept, count }) => {
+                const active = deptFilter === dept.id;
+                return (
+                  <button
+                    key={dept.id}
+                    onClick={() => {
+                      if (active) {
+                        // Toggle expanded sub-roles
+                        setExpandedDept(expandedDept === dept.id ? null : dept.id);
+                      } else {
+                        setDeptFilter(dept.id);
+                        setRoleFilter("all");
+                        setExpandedDept(dept.id);
+                      }
+                    }}
+                    style={{
+                      padding: "4px 12px",
+                      fontSize: "12px",
+                      fontFamily: "var(--font-mono)",
+                      borderRadius: "9999px",
+                      border: `1px solid ${active ? "var(--accent-casting)" : "var(--border-default)"}`,
+                      background: active
+                        ? "var(--accent-casting)"
+                        : "var(--bg-tertiary)",
+                      color: active
+                        ? "var(--bg-primary)"
+                        : "var(--text-secondary)",
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    {dept.label}{" "}
+                    <span style={{ opacity: 0.7 }}>({count})</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Sub-role pills (visible when a department is expanded) */}
+            {expandedDept && deptFilter !== "all" && (() => {
+              const deptData = departmentData.find((d) => d.dept.id === expandedDept);
+              if (!deptData || deptData.roles.size === 0) return null;
+              const sortedRoles = Array.from(deptData.roles).sort((a, b) => a.localeCompare(b));
+              return (
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "var(--space-xs)",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    paddingLeft: "var(--space-lg)",
+                    paddingTop: "var(--space-xs)",
+                    borderTop: "1px solid var(--border-subtle)",
                   }}
                 >
-                  {role}
-                </button>
+                  <button
+                    onClick={() => setRoleFilter("all")}
+                    style={{
+                      padding: "3px 10px",
+                      fontSize: "11px",
+                      fontFamily: "var(--font-mono)",
+                      borderRadius: "9999px",
+                      border: `1px solid ${roleFilter === "all" ? "var(--accent-casting)" : "var(--border-default)"}`,
+                      background:
+                        roleFilter === "all"
+                          ? "color-mix(in oklab, var(--accent-casting) 20%, var(--bg-secondary))"
+                          : "var(--bg-tertiary)",
+                      color:
+                        roleFilter === "all"
+                          ? "var(--accent-casting)"
+                          : "var(--text-muted)",
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    All in {deptData.dept.label}
+                  </button>
+                  {sortedRoles.map((role) => {
+                    const active = roleFilter === role;
+                    return (
+                      <button
+                        key={role}
+                        onClick={() => setRoleFilter(role)}
+                        style={{
+                          padding: "3px 10px",
+                          fontSize: "11px",
+                          fontFamily: "var(--font-mono)",
+                          borderRadius: "9999px",
+                          border: `1px solid ${active ? "var(--accent-casting)" : "var(--border-default)"}`,
+                          background: active
+                            ? "color-mix(in oklab, var(--accent-casting) 20%, var(--bg-secondary))"
+                            : "var(--bg-tertiary)",
+                          color: active
+                            ? "var(--accent-casting)"
+                            : "var(--text-muted)",
+                          cursor: "pointer",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        {role}
+                      </button>
+                    );
+                  })}
+                </div>
               );
-            })}
+            })()}
           </div>
         )}
       </div>
@@ -938,7 +1072,8 @@ export function PetitionsDashboard({
                       applicationUrl={petition.applicationUrl}
                       scriptUrl={petition.scriptUrl}
                       calendarUrl={petition.calendarUrl}
-                      isSelected={selectedId === petition.email.id}
+                      searchQuery={searchQuery}
+                      isSelected={selectedIdValue === petition.email.id}
                       onSelect={() => handleSelect(petition.email.id)}
                     />
                   ))}

@@ -5,6 +5,7 @@ import { format, startOfWeek, endOfWeek, isToday, isBefore, addDays } from "date
 import { DollarSign, ClipboardList, CalendarDays, Package } from "lucide-react";
 import type { ParsedEmailRow } from "@/lib/api";
 import { EmailDetailPanel } from "./EmailDetailPanel";
+import { SearchBar, highlightMatches } from "./SearchBar";
 
 type Category = "grant" | "petition" | "event" | "equipment";
 type DetailType = "grant" | "crew" | "casting" | "resource" | "event" | "petition";
@@ -161,10 +162,14 @@ export function CalendarDashboard({
   grantEmails,
   eventEmails,
   crewEmails,
+  searchQuery,
+  onSearchQueryChange,
 }: {
   grantEmails: ParsedEmailRow[];
   eventEmails: ParsedEmailRow[];
   crewEmails:  ParsedEmailRow[];
+  searchQuery: string;
+  onSearchQueryChange: (q: string) => void;
 }) {
   const [activeCategories, setActiveCategories] = useState<Set<Category>>(
     new Set(["grant", "petition", "event", "equipment"])
@@ -213,12 +218,23 @@ export function CalendarDashboard({
   const todayWeekKey = format(currentWeekStart, "yyyy-MM-dd");
 
   const filteredItems = useMemo(
-    () =>
-      allItems
+    () => {
+      let result = allItems
         .filter((item) => activeCategories.has(item.category))
-        .filter((item) => showPast || !isBefore(endOfWeek(item.date, { weekStartsOn: 1 }), currentWeekStart))
-        .sort((a, b) => a.date.getTime() - b.date.getTime()),
-    [allItems, activeCategories, showPast, currentWeekStart]
+        .filter((item) => showPast || !isBefore(endOfWeek(item.date, { weekStartsOn: 1 }), currentWeekStart));
+
+      if (searchQuery.trim()) {
+        const words = searchQuery.toLowerCase().trim().split(/\s+/);
+        result = result.filter((item) => {
+          if (item.emailId) return true;
+          const haystack = `${item.title} ${item.detail}`.toLowerCase();
+          return words.every((w) => haystack.includes(w));
+        });
+      }
+
+      return result.sort((a, b) => a.date.getTime() - b.date.getTime());
+    },
+    [allItems, activeCategories, showPast, currentWeekStart, searchQuery]
   );
 
   const pastCount = useMemo(
@@ -259,7 +275,7 @@ export function CalendarDashboard({
       <header className="dashboard-header" style={{ marginTop: 0 }}>
         <div className="header-content">
           <div className="header-top">
-            <h1 className="dashboard-title">Timeline</h1>
+            <h1 className="dashboard-title">Deadlines</h1>
             <div className="header-stats">
               <div className="stat-pill stat-open">
                 <span className="stat-value">{upcomingCount}</span>
@@ -276,6 +292,14 @@ export function CalendarDashboard({
           </p>
         </div>
       </header>
+
+      {/* Search */}
+      <div className="dashboard-search-row">
+        <SearchBar
+          onSearch={onSearchQueryChange}
+          placeholder="Search deadlines and events..."
+        />
+      </div>
 
       {/* Category Filters */}
       <div style={{
@@ -478,13 +502,13 @@ export function CalendarDashboard({
                               fontSize: "14px", fontWeight: 600, color: "var(--text-primary)",
                               marginBottom: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                             }}>
-                              {item.title}
+                              {searchQuery ? highlightMatches(item.title, searchQuery) : item.title}
                             </div>
                             <div style={{
                               fontSize: "12px", color: "var(--text-tertiary)",
                               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                             }}>
-                              {item.detail}
+                              {searchQuery ? highlightMatches(item.detail, searchQuery) : item.detail}
                             </div>
                           </div>
 

@@ -14,6 +14,7 @@ export default function CalendarPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState({ grants: true, events: true, crew: true });
+  const [searchQuery, setSearchQuery] = useState("");
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const inFlightOffsets = useRef<Set<number>>(new Set());
 
@@ -34,9 +35,9 @@ export default function CalendarPage() {
     setError(null);
     try {
       const [nextGrants, nextEvents, nextCrew] = await Promise.all([
-        hasMore.grants ? fetchGrants({ limit: PAGE_SIZE, offset: nextOffset }) : Promise.resolve([]),
-        hasMore.events ? fetchEvents({ limit: PAGE_SIZE, offset: nextOffset }) : Promise.resolve([]),
-        hasMore.crew ? fetchPetitions({ limit: PAGE_SIZE, offset: nextOffset }) : Promise.resolve([]),
+        hasMore.grants ? fetchGrants({ limit: PAGE_SIZE, offset: nextOffset, q: searchQuery || undefined }) : Promise.resolve([]),
+        hasMore.events ? fetchEvents({ limit: PAGE_SIZE, offset: nextOffset, q: searchQuery || undefined }) : Promise.resolve([]),
+        hasMore.crew ? fetchPetitions({ limit: PAGE_SIZE, offset: nextOffset, q: searchQuery || undefined }) : Promise.resolve([]),
       ]);
 
       setGrantEmails((prev) => mergeUniqueById(prev, nextGrants));
@@ -55,7 +56,17 @@ export default function CalendarPage() {
       inFlightOffsets.current.delete(nextOffset);
       setLoading(false);
     }
-  }, [hasMore, loading, mergeUniqueById, nextOffset]);
+  }, [hasMore, loading, mergeUniqueById, nextOffset, searchQuery]);
+
+  useEffect(() => {
+    inFlightOffsets.current.clear();
+    setGrantEmails([]);
+    setEventEmails([]);
+    setCrewEmails([]);
+    setNextOffset(0);
+    setHasMore({ grants: true, events: true, crew: true });
+    setError(null);
+  }, [searchQuery]);
 
   useEffect(() => {
     void loadMore();
@@ -89,7 +100,7 @@ export default function CalendarPage() {
             fontSize: "13px",
             marginBottom: "var(--space-md)",
           }}>
-            Could not load timeline data: {error}
+            Could not load deadlines data: {error}
           </div>
         </div>
       )}
@@ -98,12 +109,14 @@ export default function CalendarPage() {
         grantEmails={grantEmails}
         eventEmails={eventEmails}
         crewEmails={crewEmails}
+        searchQuery={searchQuery}
+        onSearchQueryChange={setSearchQuery}
       />
 
       <div ref={loadMoreRef} style={{ height: 1 }} />
       {loading && (
         <div style={{ textAlign: "center", fontSize: 12, color: "var(--text-tertiary)", paddingBottom: "var(--space-lg)" }}>
-          Loading more timeline items...
+          Loading more deadlines...
         </div>
       )}
     </>

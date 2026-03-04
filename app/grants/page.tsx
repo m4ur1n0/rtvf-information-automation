@@ -13,6 +13,7 @@ export default function GrantsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
   const [totalGrants, setTotalGrants] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const inFlightOffsets = useRef<Set<number>>(new Set());
 
@@ -30,7 +31,7 @@ export default function GrantsPage() {
     setLoading(true);
     setError(undefined);
     try {
-      const rows = await fetchGrants({ limit: PAGE_SIZE, offset });
+      const rows = await fetchGrants({ limit: PAGE_SIZE, offset, q: searchQuery || undefined });
       setEmails((prev) => mergeUniqueById(prev, rows));
       setOffset((prev) => prev + rows.length);
       setHasMore(rows.length === PAGE_SIZE);
@@ -40,7 +41,15 @@ export default function GrantsPage() {
       inFlightOffsets.current.delete(offset);
       setLoading(false);
     }
-  }, [hasMore, loading, mergeUniqueById, offset]);
+  }, [hasMore, loading, mergeUniqueById, offset, searchQuery]);
+
+  useEffect(() => {
+    inFlightOffsets.current.clear();
+    setEmails([]);
+    setOffset(0);
+    setHasMore(true);
+    setError(undefined);
+  }, [searchQuery]);
 
   useEffect(() => {
     void loadMore();
@@ -99,7 +108,12 @@ export default function GrantsPage() {
         </div>
       </header>
 
-      <GrantsDashboard emails={emails} error={error} />
+      <GrantsDashboard
+        emails={emails}
+        error={error}
+        searchQuery={searchQuery}
+        onSearchQueryChange={setSearchQuery}
+      />
 
       <div ref={loadMoreRef} style={{ height: 1 }} />
       {loading && (

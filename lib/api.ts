@@ -23,6 +23,8 @@ export interface EmailRow {
   confidence: number;
   reasons_json: string;         // JSON string[] — use `reasons` on ParsedEmailRow
   is_bump: number;              // 0 | 1
+  bump_count: number;
+  search_snippets: string | null;
 
   // LLM-extracted: general
   film_title: string | null;
@@ -76,6 +78,7 @@ interface FetchEmailsParams {
   q?: string;
   since?: number;
   until?: number;
+  groupBumps?: boolean;
 }
 
 interface FetchListParams {
@@ -85,6 +88,7 @@ interface FetchListParams {
   q?: string;
   since?: number;
   until?: number;
+  groupBumps?: boolean;
 }
 
 interface FetchPetitionsParams extends FetchListParams {
@@ -234,13 +238,14 @@ async function fetchEmailRows(
 }
 
 export async function fetchEmails(params: FetchEmailsParams = {}): Promise<ParsedEmailRow[]> {
-  const { category, tag, limit = 25, offset, includeDoNotCare = false, summary, q, since, until } = params;
+  const { category, tag, limit = 25, offset, includeDoNotCare = false, summary, q, since, until, groupBumps } = params;
   return fetchEmailRows("/api/emails", {
     category,
     tag,
     q,
     since,
     until,
+    groupBumps: groupBumps === undefined ? undefined : groupBumps ? "true" : "false",
     summary: summary ? "true" : undefined,
     limit,
     offset,
@@ -249,12 +254,20 @@ export async function fetchEmails(params: FetchEmailsParams = {}): Promise<Parse
 }
 
 export async function fetchGrants(params: FetchListParams = {}): Promise<ParsedEmailRow[]> {
-  const { limit = 25, offset, summary, q, since, until } = params;
-  return fetchEmailRows("/api/grants", { limit, offset, summary: summary ? "true" : undefined, q, since, until });
+  const { limit = 25, offset, summary, q, since, until, groupBumps } = params;
+  return fetchEmailRows("/api/grants", {
+    limit,
+    offset,
+    summary: summary ? "true" : undefined,
+    q,
+    since,
+    until,
+    groupBumps: groupBumps === undefined ? undefined : groupBumps ? "true" : "false",
+  });
 }
 
 export async function fetchPetitions(params: FetchPetitionsParams = {}): Promise<ParsedEmailRow[]> {
-  const { limit = 25, offset, summary, q, since, until, casting } = params;
+  const { limit = 25, offset, summary, q, since, until, casting, groupBumps } = params;
   return fetchEmailRows("/api/petitions", {
     limit,
     offset,
@@ -262,29 +275,58 @@ export async function fetchPetitions(params: FetchPetitionsParams = {}): Promise
     q,
     since,
     until,
+    groupBumps: groupBumps === undefined ? undefined : groupBumps ? "true" : "false",
     casting: casting === undefined ? undefined : casting ? "true" : "false",
   });
 }
 
 export async function fetchEvents(params: FetchListParams = {}): Promise<ParsedEmailRow[]> {
-  const { limit = 25, offset, summary, q, since, until } = params;
-  return fetchEmailRows("/api/timeline", { limit, offset, summary: summary ? "true" : undefined, q, since, until });
+  const { limit = 25, offset, summary, q, since, until, groupBumps } = params;
+  return fetchEmailRows("/api/timeline", {
+    limit,
+    offset,
+    summary: summary ? "true" : undefined,
+    q,
+    since,
+    until,
+    groupBumps: groupBumps === undefined ? undefined : groupBumps ? "true" : "false",
+  });
 }
 
 export async function fetchResources(params: FetchListParams = {}): Promise<ParsedEmailRow[]> {
-  const { limit = 25, offset, summary, q, since, until } = params;
-  return fetchEmailRows("/api/resources", { limit, offset, summary: summary ? "true" : undefined, q, since, until });
+  const { limit = 25, offset, summary, q, since, until, groupBumps } = params;
+  return fetchEmailRows("/api/resources", {
+    limit,
+    offset,
+    summary: summary ? "true" : undefined,
+    q,
+    since,
+    until,
+    groupBumps: groupBumps === undefined ? undefined : groupBumps ? "true" : "false",
+  });
 }
 
 export async function fetchAdmin(params: FetchListParams = {}): Promise<ParsedEmailRow[]> {
-  const { limit = 25, offset, summary, q, since, until } = params;
-  return fetchEmailRows("/api/admin", { limit, offset, summary: summary ? "true" : undefined, q, since, until });
+  const { limit = 25, offset, summary, q, since, until, groupBumps } = params;
+  return fetchEmailRows("/api/admin", {
+    limit,
+    offset,
+    summary: summary ? "true" : undefined,
+    q,
+    since,
+    until,
+    groupBumps: groupBumps === undefined ? undefined : groupBumps ? "true" : "false",
+  });
 }
 
 export async function fetchEmailById(id: string): Promise<ParsedEmailRow> {
   const rows = await fetchEmailRows("/api/email", { id });
   if (!rows.length) throw new Error(`Email not found: ${id}`);
   return rows[0];
+}
+
+export async function fetchThread(threadKey: string, limit = 200): Promise<ParsedEmailRow[]> {
+  return fetchEmailRows("/api/thread", { thread_key: threadKey, limit });
 }
 
 export async function fetchCategoryCounts(): Promise<CategoryCounts> {

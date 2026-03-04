@@ -1,5 +1,6 @@
 // Quick CSV sampler to understand classification challenges
 // Run with: node sample_csv.js
+/* eslint-disable @typescript-eslint/no-require-imports */
 
 const fs = require('fs');
 const path = require('path');

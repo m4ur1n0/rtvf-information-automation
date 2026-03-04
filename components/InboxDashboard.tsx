@@ -10,12 +10,14 @@ import {
   fetchGrants,
   fetchPetitions,
   fetchResources,
+  fetchThread,
   fetchTotalMessages,
   type CategoryCounts,
   type ParsedEmailRow,
 } from "@/lib/api";
 import { EmailDetailPanel } from "./EmailDetailPanel";
 import { formatSentDate } from "@/lib/format";
+import { SearchBar, highlightMatches } from "./SearchBar";
 
 const PAGE_SIZE = 25;
 
@@ -81,20 +83,20 @@ function hasMedia(email: ParsedEmailRow): boolean {
   return /\.(jpg|jpeg|png|gif|mp4|mov|webm)|youtube|vimeo|drive\.google/i.test(email.body_text);
 }
 
-async function fetchBucket(filter: CategoryFilter, offset: number): Promise<ParsedEmailRow[]> {
+async function fetchBucket(filter: CategoryFilter, offset: number, q?: string): Promise<ParsedEmailRow[]> {
   switch (filter) {
     case "ALL":
-      return fetchEmails({ limit: PAGE_SIZE, offset, summary: true });
+      return fetchEmails({ limit: PAGE_SIZE, offset, summary: true, q });
     case "GRANT":
-      return fetchGrants({ limit: PAGE_SIZE, offset, summary: true });
+      return fetchGrants({ limit: PAGE_SIZE, offset, summary: true, q });
     case "CREW_CALL":
-      return fetchPetitions({ limit: PAGE_SIZE, offset, casting: false, summary: true });
+      return fetchPetitions({ limit: PAGE_SIZE, offset, casting: false, summary: true, q });
     case "CASTING":
-      return fetchPetitions({ limit: PAGE_SIZE, offset, casting: true, summary: true });
+      return fetchPetitions({ limit: PAGE_SIZE, offset, casting: true, summary: true, q });
     case "EVENT":
-      return fetchEvents({ limit: PAGE_SIZE, offset, summary: true });
+      return fetchEvents({ limit: PAGE_SIZE, offset, summary: true, q });
     case "RESOURCE":
-      return fetchResources({ limit: PAGE_SIZE, offset, summary: true });
+      return fetchResources({ limit: PAGE_SIZE, offset, summary: true, q });
   }
 }
 
@@ -114,6 +116,11 @@ export function InboxDashboard() {
   const [selectedCategory, setSelectedCategory] = useState<CategoryConfig | null>(null);
   const [detailById, setDetailById] = useState<Record<string, ParsedEmailRow>>({});
   const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
+  const [expandedThreadByKey, setExpandedThreadByKey] = useState<Record<string, boolean>>({});
+  const [threadRowsByKey, setThreadRowsByKey] = useState<Record<string, ParsedEmailRow[]>>({});
+  const [threadLoadingByKey, setThreadLoadingByKey] = useState<Record<string, boolean>>({});
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchQueryRef = useRef("");
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const bucketsRef = useRef<Record<CategoryFilter, BucketState>>(initialBuckets());
   const inFlightRef = useRef<Record<CategoryFilter, Set<number>>>({
@@ -144,7 +151,8 @@ export function InboxDashboard() {
     }));
 
     try {
-      const rows = await fetchBucket(filter, requestOffset);
+      const q = searchQueryRef.current || undefined;
+      const rows = await fetchBucket(filter, requestOffset, q);
       setBuckets((prev) => {
         const bucket = prev[filter];
         const nextEmails = requestOffset === 0
@@ -181,6 +189,26 @@ export function InboxDashboard() {
   useEffect(() => {
     void ensureBucketLoaded(activeFilter);
   }, [activeFilter, ensureBucketLoaded]);
+
+  // Reset & re-fetch when search query changes
+  const handleSearch = useCallback((q: string) => {
+    searchQueryRef.current = q;
+    setSearchQuery(q);
+    setExpandedThreadByKey({});
+    setThreadRowsByKey({});
+    setThreadLoadingByKey({});
+    // Reset all buckets so they re-load with the new query
+    setBuckets(initialBuckets());
+    bucketsRef.current = initialBuckets();
+  }, []);
+
+  // Re-fetch active bucket after resetting due to search
+  useEffect(() => {
+    const bucket = bucketsRef.current[activeFilter];
+    if (!bucket.loaded && !bucket.loading) {
+      void ensureBucketLoaded(activeFilter);
+    }
+  }, [searchQuery, activeFilter, ensureBucketLoaded]);
 
   useEffect(() => {
     let cancelled = false;
@@ -255,6 +283,30 @@ export function InboxDashboard() {
     }
   }, [detailById]);
 
+  const toggleThread = useCallback(async (email: ParsedEmailRow) => {
+    const threadKey = email.thread_key;
+    if (!threadKey || email.bump_count <= 0) return;
+
+    const isExpanded = Boolean(expandedThreadByKey[threadKey]);
+    if (isExpanded) {
+      setExpandedThreadByKey((prev) => ({ ...prev, [threadKey]: false }));
+      return;
+    }
+
+    setExpandedThreadByKey((prev) => ({ ...prev, [threadKey]: true }));
+    if (threadRowsByKey[threadKey] || threadLoadingByKey[threadKey]) return;
+
+    setThreadLoadingByKey((prev) => ({ ...prev, [threadKey]: true }));
+    try {
+      const rows = await fetchThread(threadKey);
+      setThreadRowsByKey((prev) => ({ ...prev, [threadKey]: rows }));
+    } catch (error) {
+      console.error("[inbox] failed to fetch thread", error);
+    } finally {
+      setThreadLoadingByKey((prev) => ({ ...prev, [threadKey]: false }));
+    }
+  }, [expandedThreadByKey, threadRowsByKey, threadLoadingByKey]);
+
   const getCategoryCount = (key: CategoryFilter): string | number => {
     if (key === "ALL" && totalMessages != null) return totalMessages;
     if (counts) {
@@ -273,6 +325,13 @@ export function InboxDashboard() {
 
   return (
     <div className="tabbed-dashboard">
+      <div className="dashboard-search-row">
+        <SearchBar
+          onSearch={handleSearch}
+          placeholder="Search emails..."
+        />
+      </div>
+
       <div className="inbox-filter-tabs">
         {categories.map((cat) => {
           const isActive = activeFilter === cat.key;
@@ -302,99 +361,196 @@ export function InboxDashboard() {
         })}
       </div>
 
-      <div className="tabbed-content">
-        <div className="list-panel">
-          <div className="list-panel-header">
-            <div className="list-panel-title-row">
-              <h2 className="list-panel-title" style={{ fontSize: 20 }}>
-                {activeFilter === "ALL"
-                  ? "All Messages"
-                  : categories.find((c) => c.key === activeFilter)?.label}
-              </h2>
-              <div className="list-panel-count">{getCategoryCount(activeFilter)}</div>
+      <div className="grants-layout">
+        <div className="grants-list-main">
+          <div className="list-panel" style={{ flex: '1 1 auto' }}>
+            <div className="list-panel-header">
+              <div className="list-panel-title-row">
+                <h2 className="list-panel-title" style={{ fontSize: 20 }}>
+                  {activeFilter === "ALL"
+                    ? "All Messages"
+                    : categories.find((c) => c.key === activeFilter)?.label}
+                </h2>
+                <div className="list-panel-count">{getCategoryCount(activeFilter)}</div>
             </div>
           </div>
 
           <div className="list-panel-content">
-            {activeBucket.loading && filteredEmails.length === 0 ? (
-              <div className="section-empty">
-                <div className="empty-icon">&#8635;</div>
-                <div className="empty-message">Loading messages...</div>
-              </div>
-            ) : activeBucket.error ? (
-              <div className="section-empty">
-                <div className="empty-icon">&#9888;</div>
-                <div className="empty-message">{activeBucket.error}</div>
-              </div>
-            ) : filteredEmails.length === 0 ? (
-              <div className="section-empty">
-                <div className="empty-icon">&#8709;</div>
-                <div className="empty-message">No messages found</div>
-              </div>
-            ) : (
-              <div>
-                {filteredEmails.map(({ email, categoryConfig }) => {
-                  const isSelected = selectedEmailId === email.id;
-                  const mediaPresent = hasMedia(email);
+              {activeBucket.loading && filteredEmails.length === 0 ? (
+                <div className="section-empty">
+                  <div className="empty-icon">&#8635;</div>
+                  <div className="empty-message">Loading messages...</div>
+                </div>
+              ) : activeBucket.error ? (
+                <div className="section-empty">
+                  <div className="empty-icon">&#9888;</div>
+                  <div className="empty-message">{activeBucket.error}</div>
+                </div>
+              ) : filteredEmails.length === 0 ? (
+                <div className="section-empty">
+                  <div className="empty-icon">&#8709;</div>
+                  <div className="empty-message">No messages found</div>
+                </div>
+              ) : (
+                <div>
+                  {filteredEmails.map(({ email, categoryConfig }) => {
+                    const isSelected = selectedEmailId === email.id;
+                    const mediaPresent = hasMedia(email);
+                    const threadKey = email.thread_key ?? "";
+                    const hasBumps = Boolean(email.thread_key) && email.bump_count > 0;
+                    const isThreadExpanded = hasBumps ? Boolean(expandedThreadByKey[threadKey]) : false;
+                    const threadRows = hasBumps ? (threadRowsByKey[threadKey] ?? []) : [];
+                    const bumpChildren = threadRows
+                      .filter((row) => row.id !== email.id && row.is_bump === 1)
+                      .sort((a, b) => a.sent_at - b.sent_at);
 
-                  return (
-                    <div
-                      key={email.id}
-                      className={`inbox-item ${isSelected ? "inbox-item-selected" : ""}`}
-                      onClick={() => void handleSelectEmail(email, categoryConfig)}
-                    >
-                      <div
-                        className="inbox-category-badge"
-                        style={{ background: categoryConfig.color }}
-                        title={categoryConfig.label}
-                      >
-                        {categoryConfig.icon}
-                      </div>
+                    return (
+                      <div key={email.id}>
+                        <div
+                          className={`inbox-item ${isSelected ? "inbox-item-selected" : ""}`}
+                          onClick={() => void handleSelectEmail(email, categoryConfig)}
+                        >
+                          <div
+                            className="inbox-category-badge"
+                            style={{ background: categoryConfig.color }}
+                            title={categoryConfig.label}
+                          >
+                            {categoryConfig.icon}
+                          </div>
 
-                      <div className="inbox-item-content">
-                        <div className="inbox-item-subject">
-                          {email.subject || "(No subject)"}
-                        </div>
-                        <div className="inbox-item-meta">
-                          {email.from_name && (
-                            <span className="inbox-item-from">{email.from_name}</span>
+                          <div className="inbox-item-content">
+                          <div className="inbox-item-subject">
+                            {searchQuery
+                              ? highlightMatches(email.subject || "(No subject)", searchQuery)
+                              : (email.subject || "(No subject)")}
+                          </div>
+                          <div className="inbox-item-meta">
+                            {email.from_name && (
+                              <span className="inbox-item-from">
+                                {searchQuery
+                                  ? highlightMatches(email.from_name, searchQuery)
+                                  : email.from_name}
+                              </span>
+                            )}
+                              <span className="inbox-item-date">{formatSentDate(email.sent_at)}</span>
+                              {email.is_bump === 1 && <span className="bump-badge">BUMP</span>}
+                            </div>
+                            {searchQuery && email.search_snippets && (
+                              <div
+                                style={{
+                                  marginTop: "2px",
+                                  fontSize: "12px",
+                                  color: "var(--text-tertiary)",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {highlightMatches(email.search_snippets, searchQuery)}
+                              </div>
+                            )}
+                          </div>
+
+                          {mediaPresent && (
+                            <div className="inbox-media-icon" title="Contains media">
+                              &#9654;
+                            </div>
                           )}
-                          <span className="inbox-item-date">{formatSentDate(email.sent_at)}</span>
-                          {email.is_bump === 1 && <span className="bump-badge">BUMP</span>}
                         </div>
+
+                        {hasBumps && (
+                          <div style={{ paddingLeft: "40px", marginTop: "4px", marginBottom: "6px" }}>
+                            <button
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void toggleThread(email);
+                              }}
+                              style={{
+                                border: "none",
+                                background: "transparent",
+                                color: "var(--text-tertiary)",
+                                fontSize: "12px",
+                                cursor: "pointer",
+                                padding: 0,
+                              }}
+                            >
+                              {isThreadExpanded ? "▾" : "▸"} {email.bump_count} {email.bump_count === 1 ? "bump" : "bumps"}
+                            </button>
+                          </div>
+                        )}
+
+                        {hasBumps && isThreadExpanded && (
+                          <div
+                            style={{
+                              marginLeft: "40px",
+                              marginBottom: "8px",
+                              borderLeft: "1px solid var(--border-subtle)",
+                              paddingLeft: "12px",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "6px",
+                            }}
+                          >
+                            {threadLoadingByKey[threadKey] && (
+                              <div style={{ fontSize: "12px", color: "var(--text-tertiary)" }}>
+                                Loading thread...
+                              </div>
+                            )}
+                            {!threadLoadingByKey[threadKey] && bumpChildren.map((bump) => {
+                              const bumpConfig = getCategoryConfig(bump);
+                              const bumpSelected = selectedEmailId === bump.id;
+                              return (
+                                <div
+                                  key={bump.id}
+                                  className={`inbox-item ${bumpSelected ? "inbox-item-selected" : ""}`}
+                                  style={{ minHeight: "unset", padding: "8px 10px" }}
+                                  onClick={() => void handleSelectEmail(bump, bumpConfig)}
+                                >
+                                  <div className="inbox-item-content">
+                                    <div className="inbox-item-subject" style={{ fontSize: "13px" }}>
+                                      {searchQuery
+                                        ? highlightMatches(bump.subject || "(No subject)", searchQuery)
+                                        : (bump.subject || "(No subject)")}
+                                    </div>
+                                    <div className="inbox-item-meta">
+                                      <span className="inbox-item-date">{formatSentDate(bump.sent_at)}</span>
+                                      <span className="bump-badge">BUMP</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
+                    );
+                  })}
 
-                      {mediaPresent && (
-                        <div className="inbox-media-icon" title="Contains media">
-                          &#9654;
-                        </div>
-                      )}
+                  <div ref={loadMoreRef} style={{ height: 1 }} />
+
+                  {activeBucket.loading && activeBucket.loaded && (
+                    <div style={{ padding: "10px 0", fontSize: 12, color: "var(--text-tertiary)", textAlign: "center" }}>
+                      Loading more...
                     </div>
-                  );
-                })}
-
-                <div ref={loadMoreRef} style={{ height: 1 }} />
-
-                {activeBucket.loading && activeBucket.loaded && (
-                  <div style={{ padding: "10px 0", fontSize: 12, color: "var(--text-tertiary)", textAlign: "center" }}>
-                    Loading more...
-                  </div>
-                )}
-              </div>
-            )}
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="inbox-detail-desktop">
-          {detailLoadingId && selectedEmailId === detailLoadingId && (
-            <div style={{ padding: "var(--space-sm)", fontSize: 12, color: "var(--text-tertiary)" }}>
-              Loading full email...
-            </div>
-          )}
-          <EmailDetailPanel
-            email={selectedEmail}
-            type={selectedCategory?.detailType ?? "grant"}
-          />
+        <div className="grants-sidebar-desktop">
+          <div className="grants-detail-panel">
+            {detailLoadingId && selectedEmailId === detailLoadingId && (
+              <div style={{ padding: "var(--space-sm)", fontSize: 12, color: "var(--text-tertiary)" }}>
+                Loading full email...
+              </div>
+            )}
+            <EmailDetailPanel
+              email={selectedEmail}
+              type={selectedCategory?.detailType ?? "grant"}
+            />
+          </div>
         </div>
       </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import type { ParsedEmailRow } from "@/lib/api";
 import { formatSentDate } from "@/lib/format";
 
@@ -38,11 +38,24 @@ export function EmailDetailPanel({
       const doc = e.currentTarget.contentDocument;
       if (doc) {
         const h = doc.documentElement.scrollHeight || doc.body?.scrollHeight;
-        if (h && h > 0) setIframeHeight(Math.min(h + 24, 1200));
+        if (h && h > 0) setIframeHeight(h + 24);
       }
     } catch {
       // cross-origin; keep default height
     }
+  }, []);
+
+  useEffect(() => {
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data && e.data.type === 'iframe-resize') {
+        const newHeight = e.data.height;
+        if (typeof newHeight === 'number' && newHeight > 0) {
+          setIframeHeight(newHeight + 24);
+        }
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
   }, []);
 
   if (!email) {
@@ -139,6 +152,16 @@ export function EmailDetailPanel({
   a { color: #4f6ef7; }
   img { max-width: 100%; height: auto; }
 </style>
+<script>
+  window.addEventListener('DOMContentLoaded', () => {
+    const reportHeight = () => {
+      const h = document.documentElement.scrollHeight || document.body.scrollHeight;
+      window.parent.postMessage({ type: 'iframe-resize', height: h }, '*');
+    };
+    reportHeight();
+    new ResizeObserver(reportHeight).observe(document.body);
+  });
+</script>
 </head>
 <body>${processedHtml}</body>
 </html>`;
@@ -147,7 +170,7 @@ export function EmailDetailPanel({
         <div className="detail-body-iframe-wrapper">
           <iframe
             srcDoc={wrappedHtml}
-            sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
+            sandbox="allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
             title="Email body"
             className="detail-body-iframe"
             onLoad={handleIframeLoad}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -20,11 +20,6 @@ export function Navigation() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
-
-  // Close mobile menu on route change
-  useEffect(() => {
-    setMobileMenuOpen(false);
-  }, [pathname]);
 
   const isActive = (path: string) => pathname === path;
 
@@ -203,7 +198,7 @@ export function Navigation() {
             }}
           >
             <CalendarIcon size={14} />
-            Timeline
+            Deadlines
           </Link>
         </div>
 
@@ -280,25 +275,25 @@ export function Navigation() {
             background: "var(--bg-secondary)",
           }}
         >
-          <Link href="/" prefetch={false} style={mobileNavItemStyle(isActive("/"))}>
+          <Link href="/" prefetch={false} style={mobileNavItemStyle(isActive("/"))} onClick={() => setMobileMenuOpen(false)}>
             <Inbox size={16} />
             Inbox
           </Link>
-          <Link href="/petitions" prefetch={false} style={mobileNavItemStyle(isActive("/petitions"))}>
+          <Link href="/petitions" prefetch={false} style={mobileNavItemStyle(isActive("/petitions"))} onClick={() => setMobileMenuOpen(false)}>
             <FileText size={16} />
             Petitions
           </Link>
-          <Link href="/grants" prefetch={false} style={mobileNavItemStyle(isActive("/grants"))}>
+          <Link href="/grants" prefetch={false} style={mobileNavItemStyle(isActive("/grants"))} onClick={() => setMobileMenuOpen(false)}>
             <DollarSign size={16} />
             Grants
           </Link>
-          <Link href="/production-handbook" prefetch={false} style={mobileNavItemStyle(isActive("/production-handbook") || pathname.startsWith("/production-handbook/"))}>
+          <Link href="/production-handbook" prefetch={false} style={mobileNavItemStyle(isActive("/production-handbook") || pathname.startsWith("/production-handbook/"))} onClick={() => setMobileMenuOpen(false)}>
             <BookOpen size={16} />
             Handbook Wiki
           </Link>
-          <Link href="/calendar" prefetch={false} style={mobileNavItemStyle(isActive("/calendar"))}>
+          <Link href="/calendar" prefetch={false} style={mobileNavItemStyle(isActive("/calendar"))} onClick={() => setMobileMenuOpen(false)}>
             <CalendarIcon size={16} />
-            Timeline
+            Deadlines
           </Link>
         </div>
       )}

@@ -14,3 +14,7 @@ migrations_dir = "migrations"
 [observability.logs]
 enabled = true
 invocation_logs = true
+
+[vars]
+NVIDIA_MODEL = "stepfun-ai/step-3.5-flash"
+# NVIDIA_API_KEY is set via `wrangler secret put NVIDIA_API_KEY`

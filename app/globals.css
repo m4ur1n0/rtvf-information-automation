@@ -193,6 +193,14 @@
   align-items: center;
 }
 
+.dashboard-search-row {
+  margin-bottom: var(--space-md);
+  padding: var(--space-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
 .stat-pill {
   display: flex;
   align-items: center;
@@ -848,9 +856,9 @@
   min-height: 0;
 }
 
-/* List Panel (Left Side - 60%) */
+/* List Panel (Left Side - 35%) */
 .list-panel {
-  flex: 0 0 60%;
+  flex: 0 0 35%;
   display: flex;
   flex-direction: column;
   background: var(--bg-secondary);
@@ -1006,9 +1014,9 @@
   white-space: nowrap;
 }
 
-/* Detail Panel (Right Side - 40%) */
+/* Detail Panel (Right Side - 65%) */
 .detail-panel {
-  flex: 0 0 40%;
+  flex: 0 0 65%;
   display: flex;
   flex-direction: column;
   background: var(--bg-secondary);
@@ -1062,7 +1070,7 @@
 
 .detail-panel-content {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: visible;
   overflow-x: hidden;
   padding: var(--space-lg);
 }
@@ -1687,27 +1695,24 @@
 }
 
 .grants-list-main {
-  flex: 3 1 0%;
+  flex: 2 1 0%;
   min-width: 0;
   display: flex;
   flex-direction: column;
 }
 
 .grants-detail-panel {
-  flex: 2 1 0%;
+  flex: 3 1 0%;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  position: sticky;
-  top: 72px;
-  max-height: calc(100vh - 88px);
-  overflow: hidden;
+  min-height: calc(100vh - 88px);
+  height: auto;
 }
 
 /* When EmailDetailPanel is used inside grants layout, let it fill the panel height */
 .grants-detail-panel .detail-panel {
   height: 100%;
-  max-height: calc(100vh - 88px);
 }
 
 /* Mobile modal for grant detail */
@@ -1717,7 +1722,7 @@
 
 .grants-sidebar-desktop {
   display: block;
-  flex: 2 1 0%;
+  flex: 3 1 0%;
   min-width: 0;
 }
 
@@ -1734,6 +1739,7 @@
     flex: 1 1 auto;
     position: static;
     max-height: none;
+    height: auto;
   }
 
   .grants-sidebar-desktop {
