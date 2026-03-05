@@ -86,17 +86,17 @@ function hasMedia(email: ParsedEmailRow): boolean {
 async function fetchBucket(filter: CategoryFilter, offset: number, q?: string): Promise<ParsedEmailRow[]> {
   switch (filter) {
     case "ALL":
-      return fetchEmails({ limit: PAGE_SIZE, offset, summary: true, q });
+      return fetchEmails({ limit: PAGE_SIZE, offset, summary: true, q, groupBumps: true });
     case "GRANT":
-      return fetchGrants({ limit: PAGE_SIZE, offset, summary: true, q });
+      return fetchGrants({ limit: PAGE_SIZE, offset, summary: true, q, groupBumps: true });
     case "CREW_CALL":
-      return fetchPetitions({ limit: PAGE_SIZE, offset, casting: false, summary: true, q });
+      return fetchPetitions({ limit: PAGE_SIZE, offset, casting: false, summary: true, q, groupBumps: true });
     case "CASTING":
-      return fetchPetitions({ limit: PAGE_SIZE, offset, casting: true, summary: true, q });
+      return fetchPetitions({ limit: PAGE_SIZE, offset, casting: true, summary: true, q, groupBumps: true });
     case "EVENT":
-      return fetchEvents({ limit: PAGE_SIZE, offset, summary: true, q });
+      return fetchEvents({ limit: PAGE_SIZE, offset, summary: true, q, groupBumps: true });
     case "RESOURCE":
-      return fetchResources({ limit: PAGE_SIZE, offset, summary: true, q });
+      return fetchResources({ limit: PAGE_SIZE, offset, summary: true, q, groupBumps: true });
   }
 }
 
@@ -121,6 +121,7 @@ export function InboxDashboard() {
   const [threadLoadingByKey, setThreadLoadingByKey] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const searchQueryRef = useRef("");
+  const searchGenRef = useRef(0);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const bucketsRef = useRef<Record<CategoryFilter, BucketState>>(initialBuckets());
   const inFlightRef = useRef<Record<CategoryFilter, Set<number>>>({
@@ -145,6 +146,8 @@ export function InboxDashboard() {
     if (inFlightRef.current[filter].has(requestOffset)) return;
     inFlightRef.current[filter].add(requestOffset);
 
+    const gen = searchGenRef.current;
+
     setBuckets((prev) => ({
       ...prev,
       [filter]: { ...prev[filter], loading: true, error: undefined },
@@ -153,6 +156,8 @@ export function InboxDashboard() {
     try {
       const q = searchQueryRef.current || undefined;
       const rows = await fetchBucket(filter, requestOffset, q);
+      // Discard stale response if search changed while we were fetching
+      if (gen !== searchGenRef.current) return;
       setBuckets((prev) => {
         const bucket = prev[filter];
         const nextEmails = requestOffset === 0
@@ -172,6 +177,7 @@ export function InboxDashboard() {
         };
       });
     } catch (error) {
+      if (gen !== searchGenRef.current) return;
       setBuckets((prev) => ({
         ...prev,
         [filter]: {
@@ -182,7 +188,9 @@ export function InboxDashboard() {
         },
       }));
     } finally {
-      inFlightRef.current[filter].delete(requestOffset);
+      if (gen === searchGenRef.current) {
+        inFlightRef.current[filter].delete(requestOffset);
+      }
     }
   }, []);
 
@@ -194,9 +202,14 @@ export function InboxDashboard() {
   const handleSearch = useCallback((q: string) => {
     searchQueryRef.current = q;
     setSearchQuery(q);
+    searchGenRef.current++;
     setExpandedThreadByKey({});
     setThreadRowsByKey({});
     setThreadLoadingByKey({});
+    // Clear in-flight tracking so new fetches aren't blocked by stale ones
+    for (const key of Object.keys(inFlightRef.current) as CategoryFilter[]) {
+      inFlightRef.current[key].clear();
+    }
     // Reset all buckets so they re-load with the new query
     setBuckets(initialBuckets());
     bucketsRef.current = initialBuckets();
@@ -245,8 +258,7 @@ export function InboxDashboard() {
   const activeBucket = buckets[activeFilter];
 
   const filteredEmails = useMemo(() => {
-    const source = activeBucket.emails;
-    const merged = source.map((email) => ({
+    const merged = activeBucket.emails.map((email) => ({
       email,
       categoryConfig: getCategoryConfig(email),
     }));
@@ -284,7 +296,7 @@ export function InboxDashboard() {
   }, [detailById]);
 
   const toggleThread = useCallback(async (email: ParsedEmailRow) => {
-    const threadKey = email.thread_key;
+    const threadKey = (email.thread_key ?? "").trim();
     if (!threadKey || email.bump_count <= 0) return;
 
     const isExpanded = Boolean(expandedThreadByKey[threadKey]);
@@ -396,13 +408,13 @@ export function InboxDashboard() {
                   {filteredEmails.map(({ email, categoryConfig }) => {
                     const isSelected = selectedEmailId === email.id;
                     const mediaPresent = hasMedia(email);
-                    const threadKey = email.thread_key ?? "";
-                    const hasBumps = Boolean(email.thread_key) && email.bump_count > 0;
+                    const threadKey = (email.thread_key ?? "").trim();
+                    const hasBumps = threadKey.length > 0 && email.bump_count > 0;
                     const isThreadExpanded = hasBumps ? Boolean(expandedThreadByKey[threadKey]) : false;
                     const threadRows = hasBumps ? (threadRowsByKey[threadKey] ?? []) : [];
                     const bumpChildren = threadRows
-                      .filter((row) => row.id !== email.id && row.is_bump === 1)
-                      .sort((a, b) => a.sent_at - b.sent_at);
+                      .filter((row) => row.id !== email.id)
+                      .sort((a, b) => b.sent_at - a.sent_at);
 
                     return (
                       <div key={email.id}>
@@ -514,7 +526,7 @@ export function InboxDashboard() {
                                     </div>
                                     <div className="inbox-item-meta">
                                       <span className="inbox-item-date">{formatSentDate(bump.sent_at)}</span>
-                                      <span className="bump-badge">BUMP</span>
+                                      {bump.is_bump === 1 && <span className="bump-badge">BUMP</span>}
                                     </div>
                                   </div>
                                 </div>
@@ -549,6 +561,7 @@ export function InboxDashboard() {
             <EmailDetailPanel
               email={selectedEmail}
               type={selectedCategory?.detailType ?? "grant"}
+              searchQuery={searchQuery || undefined}
             />
           </div>
         </div>
@@ -567,6 +580,7 @@ export function InboxDashboard() {
             <EmailDetailPanel
               email={selectedEmail}
               type={selectedCategory?.detailType ?? "grant"}
+              searchQuery={searchQuery || undefined}
             />
           </div>
         </div>

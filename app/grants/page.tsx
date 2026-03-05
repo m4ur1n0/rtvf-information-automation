@@ -2,58 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GrantsDashboard } from "@/components/GrantsDashboard";
-import { fetchCategoryCounts, fetchGrants, type ParsedEmailRow } from "@/lib/api";
-
-const PAGE_SIZE = 25;
+import { fetchCategoryCounts, fetchGrants } from "@/lib/api";
+import { useSearchableData } from "@/hooks/useSearchableData";
 
 export default function GrantsPage() {
-  const [emails, setEmails] = useState<ParsedEmailRow[]>([]);
-  const [offset, setOffset] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | undefined>(undefined);
-  const [totalGrants, setTotalGrants] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [totalGrants, setTotalGrants] = useState<number | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
-  const inFlightOffsets = useRef<Set<number>>(new Set());
 
-  const mergeUniqueById = useCallback((existing: ParsedEmailRow[], incoming: ParsedEmailRow[]) => {
-    const byId = new Map<string, ParsedEmailRow>();
-    for (const row of existing) byId.set(row.id, row);
-    for (const row of incoming) byId.set(row.id, row);
-    return Array.from(byId.values()).sort((a, b) => b.sent_at - a.sent_at);
-  }, []);
-
-  const loadMore = useCallback(async () => {
-    if (loading || !hasMore) return;
-    if (inFlightOffsets.current.has(offset)) return;
-    inFlightOffsets.current.add(offset);
-    setLoading(true);
-    setError(undefined);
-    try {
-      const rows = await fetchGrants({ limit: PAGE_SIZE, offset, q: searchQuery || undefined });
-      setEmails((prev) => mergeUniqueById(prev, rows));
-      setOffset((prev) => prev + rows.length);
-      setHasMore(rows.length === PAGE_SIZE);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
-    } finally {
-      inFlightOffsets.current.delete(offset);
-      setLoading(false);
-    }
-  }, [hasMore, loading, mergeUniqueById, offset, searchQuery]);
-
-  useEffect(() => {
-    inFlightOffsets.current.clear();
-    setEmails([]);
-    setOffset(0);
-    setHasMore(true);
-    setError(undefined);
-  }, [searchQuery]);
-
-  useEffect(() => {
-    void loadMore();
-  }, [loadMore]);
+  const { items: emails, loading, initialLoading, error, hasMore, loadMore } =
+    useSearchableData(fetchGrants, searchQuery);
 
   useEffect(() => {
     let cancelled = false;
@@ -68,9 +26,7 @@ export default function GrantsPage() {
     if (!node) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        const entry = entries[0];
-        if (!entry?.isIntersecting) return;
-        void loadMore();
+        if (entries[0]?.isIntersecting) loadMore();
       },
       { rootMargin: "300px 0px" }
     );
@@ -116,7 +72,7 @@ export default function GrantsPage() {
       />
 
       <div ref={loadMoreRef} style={{ height: 1 }} />
-      {loading && (
+      {loading && !initialLoading && (
         <div style={{ textAlign: "center", fontSize: 12, color: "var(--text-tertiary)", padding: "var(--space-md)" }}>
           Loading more grants...
         </div>

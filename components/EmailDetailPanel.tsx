@@ -3,12 +3,14 @@
 import { useState, useCallback, useEffect } from "react";
 import type { ParsedEmailRow } from "@/lib/api";
 import { formatSentDate } from "@/lib/format";
+import { highlightMatches } from "./SearchBar";
 
 interface EmailDetailPanelProps {
   email: ParsedEmailRow | null;
   type: "grant" | "crew" | "casting" | "resource" | "event" | "petition";
   showStatus?: boolean;
   showTags?: boolean;
+  searchQuery?: string;
 }
 
 function toHttpUrl(raw: string | null | undefined): string | null {
@@ -29,6 +31,7 @@ export function EmailDetailPanel({
   type,
   showStatus = true,
   showTags = true,
+  searchQuery,
 }: EmailDetailPanelProps) {
   const [bodyMode, setBodyMode] = useState<"html" | "text">("html");
   const [iframeHeight, setIframeHeight] = useState(400);
@@ -125,6 +128,9 @@ export function EmailDetailPanel({
 
   const renderBody = () => {
     const showHtml = bodyMode === "html" && hasHtml;
+    const searchTerms = searchQuery
+      ? searchQuery.trim().split(/\s+/).filter(Boolean)
+      : [];
 
     if (showHtml) {
       // cid: references are inline MIME attachments — browsers can't resolve them.
@@ -140,6 +146,48 @@ export function EmailDetailPanel({
         .replace(/src="cid:[^"]*"/gi, `src="${CID_PLACEHOLDER}"`)
         .replace(/src='cid:[^']*'/gi, `src="${CID_PLACEHOLDER}"`);
 
+      // Build optional highlight script injected into the iframe
+      // Terms are already normalized to lowercase alphanumeric so no regex escaping needed
+      const termsJson = JSON.stringify(searchTerms.map(t => t.toLowerCase()));
+      const highlightScript = searchTerms.length > 0
+        ? [
+            "<script>",
+            "(function() {",
+            "  var terms = " + termsJson + ";",
+            "  var escaped = terms.map(function(t) { return t.replace(/[.*+?^${}()|\\[\\]\\\\]/g, '\\\\$&'); });",
+            "  var pattern = new RegExp('(' + escaped.join('|') + ')', 'gi');",
+            "  function walkAndHighlight(root) {",
+            "    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);",
+            "    var nodes = [], n;",
+            "    while ((n = walker.nextNode())) nodes.push(n);",
+            "    nodes.forEach(function(textNode) {",
+            "      var parent = textNode.parentNode;",
+            "      if (!parent) return;",
+            "      var tag = parent.nodeName;",
+            "      if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'MARK') return;",
+            "      var text = textNode.nodeValue || '';",
+            "      if (!pattern.test(text)) { pattern.lastIndex = 0; return; }",
+            "      pattern.lastIndex = 0;",
+            "      var frag = document.createDocumentFragment();",
+            "      var last = 0, m;",
+            "      while ((m = pattern.exec(text)) !== null) {",
+            "        if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));",
+            "        var mark = document.createElement('mark');",
+            "        mark.style.cssText = 'background:rgba(255,200,0,0.5);color:inherit;padding:0 1px;border-radius:2px;';",
+            "        mark.textContent = m[0];",
+            "        frag.appendChild(mark);",
+            "        last = pattern.lastIndex;",
+            "      }",
+            "      if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));",
+            "      parent.replaceChild(frag, textNode);",
+            "    });",
+            "  }",
+            "  window.addEventListener('DOMContentLoaded', function() { walkAndHighlight(document.body); });",
+            "})();",
+            "</script>",
+          ].join("\n")
+        : "";
+
       // Wrap in a minimal HTML shell so styles render correctly inside the iframe
       const wrappedHtml = `<!DOCTYPE html>
 <html>
@@ -152,6 +200,7 @@ export function EmailDetailPanel({
   a { color: #4f6ef7; }
   img { max-width: 100%; height: auto; }
 </style>
+${highlightScript}
 <script>
   window.addEventListener('DOMContentLoaded', () => {
     const reportHeight = () => {
@@ -201,7 +250,11 @@ export function EmailDetailPanel({
         .replace(/&quot;/g, '"')
         .replace(/&#39;/g, "'")
         .trim();
-      return <div className="detail-body-content">{cleanedText}</div>;
+      return (
+        <div className="detail-body-content">
+          {searchQuery ? highlightMatches(cleanedText, searchQuery) : cleanedText}
+        </div>
+      );
     }
 
     return <div className="detail-no-content">No body content available</div>;

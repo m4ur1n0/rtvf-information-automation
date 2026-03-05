@@ -1,68 +1,35 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchPetitions, type ParsedEmailRow } from "@/lib/api";
 import { PetitionsDashboard } from "@/components/PetitionsDashboard";
 import { CreatePetitionModal } from "@/components/CreatePetitionModal";
 import { isPast, addDays, isWithinInterval } from "date-fns";
+import { useSearchableData } from "@/hooks/useSearchableData";
 
 export default function PetitionsPage() {
-  const [emails, setEmails] = useState<ParsedEmailRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | undefined>(undefined);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  useEffect(() => {
-    let cancelled = false;
+  const fetchPetitionsFn = useCallback(
+    (params: { limit: number; offset: number; q?: string; groupBumps?: boolean }) =>
+      fetchPetitions({ ...params, summary: false }),
+    [],
+  );
 
-    async function loadAllPetitions() {
-      setLoading(true);
-      setError(undefined);
-      try {
-        const pageSize = 200;
-        let offset = 0;
-        const combined: ParsedEmailRow[] = [];
-
-        while (true) {
-          const page = await fetchPetitions({
-            limit: pageSize,
-            offset,
-            summary: false,
-            q: searchQuery || undefined,
-          });
-          combined.push(...page);
-          if (page.length < pageSize || combined.length >= 2000) break;
-          offset += page.length;
-        }
-
-        const byId = new Map<string, ParsedEmailRow>();
-        for (const row of combined) byId.set(row.id, row);
-
-        if (!cancelled) setEmails(Array.from(byId.values()));
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load petitions");
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    void loadAllPetitions();
-    return () => {
-      cancelled = true;
-    };
-  }, [searchQuery]);
+  const { items: emails, loading, initialLoading, error } = useSearchableData(
+    fetchPetitionsFn,
+    searchQuery,
+    { loadAll: true },
+  );
 
   // Handle hash navigation
   useEffect(() => {
     const handleHashChange = () => {
-      const hash = window.location.hash.slice(1); // Remove #
+      const hash = window.location.hash.slice(1);
       if (hash) {
         setSelectedId(hash);
-        // Scroll to petition after a short delay to allow rendering
         setTimeout(() => {
           const element = document.getElementById(`petition-${hash}`);
           if (element) {
@@ -74,19 +41,14 @@ export default function PetitionsPage() {
       }
     };
 
-    // Handle initial hash on load
     handleHashChange();
-
-    // Listen for hash changes
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
   const handleCreateSuccess = (opportunityId: string) => {
     setShowCreateModal(false);
-    // Navigate to the new petition
     window.location.hash = opportunityId;
-    // Refresh petition list to show the new one
     window.location.reload();
   };
 
@@ -108,7 +70,8 @@ export default function PetitionsPage() {
     }).length;
   }, [emails]);
 
-  if (loading) {
+  // Only show full-page spinner on very first load, not on search re-fetches
+  if (initialLoading) {
     return (
       <div className="dashboard-container" style={{ paddingTop: 0 }}>
         <div className="section-empty">

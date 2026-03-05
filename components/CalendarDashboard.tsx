@@ -298,6 +298,7 @@ export function CalendarDashboard({
         <SearchBar
           onSearch={onSearchQueryChange}
           placeholder="Search deadlines and events..."
+          defaultValue={searchQuery}
         />
       </div>
 
@@ -541,7 +542,7 @@ export function CalendarDashboard({
         <div className="grants-sidebar-desktop">
           {selectedEmail && selectedItem ? (
             <div className="grants-detail-panel">
-              <EmailDetailPanel email={selectedEmail} type={selectedItem.detailType!} />
+              <EmailDetailPanel email={selectedEmail} type={selectedItem.detailType!} searchQuery={searchQuery || undefined} />
             </div>
           ) : (
             <div className="grants-detail-panel">
@@ -564,7 +565,7 @@ export function CalendarDashboard({
               borderRadius: "9999px",
               margin: "10px auto 0",
             }} />
-            <EmailDetailPanel email={selectedEmail} type={selectedItem.detailType!} />
+            <EmailDetailPanel email={selectedEmail} type={selectedItem.detailType!} searchQuery={searchQuery || undefined} />
           </div>
         </div>
       )}

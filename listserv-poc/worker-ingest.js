@@ -11,6 +11,7 @@ import {
     nowSec,
     normalizeSenderFields,
     normalizeEmailAddress,
+    normalizeMessageId,
     parsePositiveInt,
     normalizeContentId,
 } from "./worker-helpers.js";
@@ -29,7 +30,15 @@ export async function ingestOneMessage(env, m) {
         return { id: null, skipped: true, reason: "user_created_petition" };
     }
 
-    const threadKey = makeThreadKey(m.subject);
+    const subjectThreadKey = makeThreadKey(m.subject);
+    const rfcMessageId = normalizeMessageId(m.rfcMessageId ?? m.providerMessageId);
+    const inReplyTo = normalizeMessageId(m.inReplyTo);
+    const references = uniqueStrings(
+        (Array.isArray(m.references) ? m.references : [])
+            .map((value) => normalizeMessageId(value))
+            .filter(Boolean)
+    );
+    const threadKey = await resolveThreadKeyFromRfc(env, inReplyTo, references) ?? subjectThreadKey;
     const createdAt = nowSec();
     const normalizedSender = normalizeSenderFields(m.fromEmail, m.fromName);
     const normalizedReplyTo = normalizeEmailAddress(m.replyTo);
@@ -200,7 +209,7 @@ export async function ingestOneMessage(env, m) {
 
     await env.DATABASE_BINDING.prepare(
         `INSERT INTO emails (
-            id, provider_message_id, source, listserv,
+            id, provider_message_id, rfc_message_id, in_reply_to, references_json, source, listserv,
             from_email, from_name, reply_to, to_emails_json,
             subject, body_text, body_html, sent_at,
             category, tags_json, confidence, reasons_json,
@@ -213,22 +222,25 @@ export async function ingestOneMessage(env, m) {
             llm_reasoning, classifier_version,
             created_at, updated_at
         ) VALUES (
-            ?1,  ?2,  ?3,  ?4,
-            ?5,  ?6,  ?7,  ?8,
-            ?9,  ?10, ?11, ?12,
-            ?13, ?14, ?15, ?16,
-            ?17, ?18, ?19,
+            ?1,  ?2,  ?3,  ?4,  ?5,  ?6,  ?7,
+            ?8,  ?9,  ?10, ?11,
+            ?12, ?13, ?14, ?15,
+            ?16, ?17, ?18, ?19,
             ?20, ?21, ?22,
-            ?23, ?24, ?25, ?26,
-            ?27, ?28, ?29, ?30,
-            ?31, ?32, ?33, ?34, ?35, ?36,
-            ?37, ?38, ?39,
-            ?40, ?41,
-            ?42, ?43
+            ?23, ?24, ?25,
+            ?26, ?27, ?28, ?29,
+            ?30, ?31, ?32, ?33,
+            ?34, ?35, ?36, ?37, ?38, ?39,
+            ?40, ?41, ?42,
+            ?43, ?44,
+            ?45, ?46
         )`
     ).bind(
         id,
         m.providerMessageId,
+        rfcMessageId,
+        inReplyTo,
+        references.length > 0 ? JSON.stringify(references) : null,
         m.source,
         m.listserv,
         normalizedSender.fromEmail,
@@ -456,6 +468,36 @@ function detectBump(subject, bodyText) {
         }
     }
     return { isBump: reasons.length > 0, bumpReasons: reasons };
+}
+
+async function resolveThreadKeyFromRfc(env, inReplyTo, references) {
+    const candidates = [];
+
+    if (inReplyTo) candidates.push(inReplyTo);
+    if (Array.isArray(references)) {
+        for (let i = references.length - 1; i >= 0; i--) {
+            if (references[i]) candidates.push(references[i]);
+        }
+    }
+
+    const uniqueCandidates = uniqueStrings(candidates);
+    for (const messageId of uniqueCandidates) {
+        const row = await env.DATABASE_BINDING.prepare(
+            `SELECT thread_key, subject
+             FROM emails
+             WHERE rfc_message_id = ?1
+             ORDER BY sent_at DESC
+             LIMIT 1`
+        ).bind(messageId).first();
+
+        if (!row) continue;
+
+        const existingThreadKey = typeof row.thread_key === "string" ? row.thread_key.trim() : "";
+        if (existingThreadKey) return existingThreadKey;
+        return makeThreadKey(row.subject);
+    }
+
+    return null;
 }
 
 async function resolveCanonicalForBump(env, threadKey, sentAt) {

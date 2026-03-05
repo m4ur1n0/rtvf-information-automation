@@ -69,6 +69,72 @@ export function normalizeEmailAddress(value) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed) ? trimmed : null;
 }
 
+export function normalizeMessageId(value) {
+    if (typeof value !== "string") return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const unwrapped = trimmed.replace(/^<+/, "").replace(/>+$/, "").trim();
+    if (!unwrapped) return null;
+    return unwrapped.toLowerCase();
+}
+
+export function parseMessageIdList(value) {
+    if (Array.isArray(value)) {
+        return value
+            .map((v) => normalizeMessageId(typeof v === "string" ? v : ""))
+            .filter(Boolean);
+    }
+
+    if (typeof value !== "string") return [];
+    const raw = value.trim();
+    if (!raw) return [];
+
+    const extracted = [];
+    const angleMatches = raw.match(/<[^>]+>/g);
+    if (angleMatches && angleMatches.length > 0) {
+        for (const m of angleMatches) {
+            const normalized = normalizeMessageId(m);
+            if (normalized) extracted.push(normalized);
+        }
+        return Array.from(new Set(extracted));
+    }
+
+    return Array.from(new Set(
+        raw
+            .split(/\s+/)
+            .map((part) => normalizeMessageId(part))
+            .filter(Boolean)
+    ));
+}
+
+export function getHeaderValue(headers, name) {
+    if (!headers || !name) return null;
+    const target = String(name).toLowerCase();
+
+    if (Array.isArray(headers)) {
+        const found = headers.find((h) => {
+            if (!h || typeof h !== "object") return false;
+            const key = String(h.key ?? h.name ?? "").toLowerCase();
+            return key === target;
+        });
+        const value = found?.value ?? found?.line ?? null;
+        return typeof value === "string" && value.trim() ? value.trim() : null;
+    }
+
+    if (typeof headers === "object") {
+        for (const [k, v] of Object.entries(headers)) {
+            if (String(k).toLowerCase() !== target) continue;
+            if (typeof v === "string" && v.trim()) return v.trim();
+            if (Array.isArray(v)) {
+                const joined = v.filter((x) => typeof x === "string").join(" ");
+                if (joined.trim()) return joined.trim();
+            }
+        }
+    }
+
+    return null;
+}
+
 export function normalizeSenderFields(fromEmailRaw, fromNameRaw) {
     const parsedEmail = splitMailbox(fromEmailRaw);
     const parsedName = splitMailbox(fromNameRaw);
@@ -289,7 +355,26 @@ export async function listProjectedEmails(env, url, opts) {
         args.push(until);
     }
     if (groupBumps) {
-        where.push("COALESCE(e.is_bump, 0) = 0");
+        where.push(`(
+            e.thread_key IS NULL OR trim(e.thread_key) = '' OR NOT EXISTS (
+                SELECT 1
+                FROM emails eg
+                WHERE lower(trim(eg.thread_key)) = lower(trim(e.thread_key))
+                  AND eg.category = e.category
+                  AND (
+                    CASE WHEN COALESCE(eg.is_bump, 0) = 0 THEN 0 ELSE 1 END <
+                    CASE WHEN COALESCE(e.is_bump, 0) = 0 THEN 0 ELSE 1 END
+                    OR (
+                      CASE WHEN COALESCE(eg.is_bump, 0) = 0 THEN 0 ELSE 1 END =
+                      CASE WHEN COALESCE(e.is_bump, 0) = 0 THEN 0 ELSE 1 END
+                      AND (
+                        eg.sent_at < e.sent_at
+                        OR (eg.sent_at = e.sent_at AND eg.id < e.id)
+                      )
+                    )
+                  )
+            )
+        )`);
     }
     if (searchTerms.length > 0) {
         appendSearchWhereClauses(where, args, searchTerms, "e", {
@@ -351,6 +436,17 @@ export async function listProjectedEmails(env, url, opts) {
     const searchSnippetSelect = buildSearchSnippetSelect("e", searchTerms);
 
     const whereSql = `WHERE ${where.join(" AND ")}`;
+    const orderBySql = groupBumps
+        ? `ORDER BY COALESCE(
+            (
+                SELECT MAX(es.sent_at)
+                FROM emails es
+                WHERE lower(trim(es.thread_key)) = lower(trim(e.thread_key))
+                  AND es.category = e.category
+            ),
+            e.sent_at
+        ) DESC, e.sent_at DESC`
+        : `ORDER BY e.sent_at DESC`;
     const stmt = env.DATABASE_BINDING.prepare(
         `SELECT
             e.id, e.subject, ${bodyTextSelect}, ${bodyHtmlSelect},
@@ -364,12 +460,16 @@ export async function listProjectedEmails(env, url, opts) {
             e.confidence,
             ${reasonsSelect},
             e.is_bump, e.thread_key, e.canonical_id,
-            (
-                SELECT COUNT(1)
-                FROM emails eb
-                WHERE eb.thread_key = e.thread_key
-                  AND COALESCE(eb.is_bump, 0) = 1
-            ) AS bump_count,
+            e.rfc_message_id, e.in_reply_to, e.references_json,
+            CASE
+                WHEN e.thread_key IS NULL OR trim(e.thread_key) = '' THEN 0
+                ELSE (
+                    SELECT COUNT(1)
+                    FROM emails eb
+                    WHERE lower(trim(eb.thread_key)) = lower(trim(e.thread_key))
+                      AND COALESCE(eb.is_bump, 0) = 1
+                )
+            END AS bump_count,
             ${searchSnippetSelect},
             ${col("film_title", "e.film_title")},
             ${col("logline", "e.logline")},
@@ -394,7 +494,7 @@ export async function listProjectedEmails(env, url, opts) {
          FROM ${opts.table} ${opts.alias}
          JOIN emails e ON e.id = ${opts.alias}.email_id
          ${whereSql}
-         ORDER BY e.sent_at DESC
+         ${orderBySql}
          LIMIT ? OFFSET ?`
     );
 

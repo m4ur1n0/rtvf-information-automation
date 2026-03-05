@@ -5,6 +5,9 @@ export interface EmailRow {
   id: string;
   thread_key: string | null;
   canonical_id: string | null;
+  rfc_message_id: string | null;
+  in_reply_to: string | null;
+  references_json: string | null;
 
   // Sender
   from_email: string | null;

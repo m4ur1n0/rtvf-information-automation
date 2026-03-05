@@ -7,27 +7,35 @@ interface SearchBarProps {
   onSearch: (q: string) => void;
   placeholder?: string;
   debounceMs?: number;
+  defaultValue?: string;
 }
 
 export function SearchBar({
   onSearch,
   placeholder = "Search emails...",
   debounceMs = 160,
+  defaultValue = "",
 }: SearchBarProps) {
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(defaultValue);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scheduleSearch = useCallback(
     (q: string) => {
       if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => onSearch(q.trim()), debounceMs);
+      timerRef.current = setTimeout(() => {
+        timerRef.current = null;
+        onSearch(q.trim());
+      }, debounceMs);
     },
     [onSearch, debounceMs],
   );
 
   const flushSearch = useCallback(
     (q: string) => {
-      if (timerRef.current) clearTimeout(timerRef.current);
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
       onSearch(q.trim());
     },
     [onSearch],
@@ -90,7 +98,8 @@ export function SearchBar({
           e.currentTarget.style.borderColor = "var(--border-emphasis)";
         }}
         onBlur={(e) => {
-          flushSearch(input);
+          // Only flush if there's a pending debounced search — don't re-fire on every blur
+          if (timerRef.current) flushSearch(input);
           e.currentTarget.style.borderColor = "var(--border-default)";
         }}
       />

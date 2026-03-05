@@ -1,91 +1,38 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CalendarDashboard } from "@/components/CalendarDashboard";
-import { fetchEvents, fetchGrants, fetchPetitions, type ParsedEmailRow } from "@/lib/api";
-
-const PAGE_SIZE = 25;
+import { fetchEvents, fetchGrants, fetchPetitions } from "@/lib/api";
+import { useSearchableData } from "@/hooks/useSearchableData";
 
 export default function CalendarPage() {
-  const [grantEmails, setGrantEmails] = useState<ParsedEmailRow[]>([]);
-  const [eventEmails, setEventEmails] = useState<ParsedEmailRow[]>([]);
-  const [crewEmails, setCrewEmails] = useState<ParsedEmailRow[]>([]);
-  const [nextOffset, setNextOffset] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState({ grants: true, events: true, crew: true });
   const [searchQuery, setSearchQuery] = useState("");
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
-  const inFlightOffsets = useRef<Set<number>>(new Set());
 
-  const mergeUniqueById = useCallback((existing: ParsedEmailRow[], incoming: ParsedEmailRow[]) => {
-    const byId = new Map<string, ParsedEmailRow>();
-    for (const row of existing) byId.set(row.id, row);
-    for (const row of incoming) byId.set(row.id, row);
-    return Array.from(byId.values()).sort((a, b) => b.sent_at - a.sent_at);
-  }, []);
+  const grants = useSearchableData(fetchGrants, searchQuery);
+  const events = useSearchableData(fetchEvents, searchQuery);
+  const crew = useSearchableData(fetchPetitions, searchQuery);
 
-  const loadMore = useCallback(async () => {
-    if (loading) return;
-    if (!hasMore.grants && !hasMore.events && !hasMore.crew) return;
-    if (inFlightOffsets.current.has(nextOffset)) return;
-    inFlightOffsets.current.add(nextOffset);
-
-    setLoading(true);
-    setError(null);
-    try {
-      const [nextGrants, nextEvents, nextCrew] = await Promise.all([
-        hasMore.grants ? fetchGrants({ limit: PAGE_SIZE, offset: nextOffset, q: searchQuery || undefined }) : Promise.resolve([]),
-        hasMore.events ? fetchEvents({ limit: PAGE_SIZE, offset: nextOffset, q: searchQuery || undefined }) : Promise.resolve([]),
-        hasMore.crew ? fetchPetitions({ limit: PAGE_SIZE, offset: nextOffset, q: searchQuery || undefined }) : Promise.resolve([]),
-      ]);
-
-      setGrantEmails((prev) => mergeUniqueById(prev, nextGrants));
-      setEventEmails((prev) => mergeUniqueById(prev, nextEvents));
-      setCrewEmails((prev) => mergeUniqueById(prev, nextCrew));
-
-      setHasMore((prev) => ({
-        grants: prev.grants && nextGrants.length === PAGE_SIZE,
-        events: prev.events && nextEvents.length === PAGE_SIZE,
-        crew: prev.crew && nextCrew.length === PAGE_SIZE,
-      }));
-      setNextOffset((prev) => prev + PAGE_SIZE);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
-    } finally {
-      inFlightOffsets.current.delete(nextOffset);
-      setLoading(false);
-    }
-  }, [hasMore, loading, mergeUniqueById, nextOffset, searchQuery]);
-
-  useEffect(() => {
-    inFlightOffsets.current.clear();
-    setGrantEmails([]);
-    setEventEmails([]);
-    setCrewEmails([]);
-    setNextOffset(0);
-    setHasMore({ grants: true, events: true, crew: true });
-    setError(null);
-  }, [searchQuery]);
-
-  useEffect(() => {
-    void loadMore();
-  }, [loadMore]);
+  const loading = grants.loading || events.loading || crew.loading;
 
   useEffect(() => {
     const node = loadMoreRef.current;
     if (!node) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        const entry = entries[0];
-        if (!entry?.isIntersecting) return;
-        void loadMore();
+        if (entries[0]?.isIntersecting) {
+          grants.loadMore();
+          events.loadMore();
+          crew.loadMore();
+        }
       },
       { rootMargin: "300px 0px" }
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, [loadMore]);
+  }, [grants.loadMore, events.loadMore, crew.loadMore]);
+
+  const error = grants.error || events.error || crew.error;
 
   return (
     <>
@@ -106,15 +53,15 @@ export default function CalendarPage() {
       )}
 
       <CalendarDashboard
-        grantEmails={grantEmails}
-        eventEmails={eventEmails}
-        crewEmails={crewEmails}
+        grantEmails={grants.items}
+        eventEmails={events.items}
+        crewEmails={crew.items}
         searchQuery={searchQuery}
         onSearchQueryChange={setSearchQuery}
       />
 
       <div ref={loadMoreRef} style={{ height: 1 }} />
-      {loading && (
+      {loading && !grants.initialLoading && (
         <div style={{ textAlign: "center", fontSize: 12, color: "var(--text-tertiary)", paddingBottom: "var(--space-lg)" }}>
           Loading more deadlines...
         </div>

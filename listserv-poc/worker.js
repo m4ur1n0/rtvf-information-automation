@@ -11,13 +11,16 @@ import {
     buildSearchSnippetSelect,
     corsHeaders,
     fetchEmailEngineAttachmentsForMessage,
+    getHeaderValue,
     jsonResponse,
     listProjectedEmails,
     logApiRequest,
     normalizeContentId,
+    normalizeMessageId,
     normalizeSearchTerms,
     nowSec,
     parseSentAtToEpochSeconds,
+    parseMessageIdList,
     pick,
     resolveEmailEngineAccessToken,
     resolveEmailEngineBaseUrl,
@@ -173,12 +176,16 @@ export default {
                         '[]'
                     ) AS reasons_json,
                     e.is_bump, e.thread_key, e.canonical_id,
-                    (
-                        SELECT COUNT(1)
-                        FROM emails eb
-                        WHERE eb.thread_key = e.thread_key
-                          AND COALESCE(eb.is_bump, 0) = 1
-                    ) AS bump_count,
+                    e.rfc_message_id, e.in_reply_to, e.references_json,
+                    CASE
+                        WHEN e.thread_key IS NULL OR trim(e.thread_key) = '' THEN 0
+                        ELSE (
+                            SELECT COUNT(1)
+                            FROM emails eb
+                            WHERE lower(trim(eb.thread_key)) = lower(trim(e.thread_key))
+                              AND COALESCE(eb.is_bump, 0) = 1
+                        )
+                    END AS bump_count,
                     NULL AS search_snippets,
                     e.film_title, e.logline, e.production_type, e.director_name,
                     COALESCE(
@@ -223,8 +230,9 @@ export default {
             return jsonResponse({ ok: true, rows: [row] });
         }
 
-        if (req.method === "GET" && url.pathname === "/api/thread") {
-            const threadKey = url.searchParams.get("thread_key");
+        if (req.method === "GET" && (url.pathname === "/api/thread" || url.pathname === "/api/thread/" || url.pathname === "/api/threads")) {
+            const threadKeyRaw = url.searchParams.get("thread_key");
+            const threadKey = typeof threadKeyRaw === "string" ? threadKeyRaw.trim() : "";
             if (!threadKey) return badRequest("missing thread_key");
 
             const limit = Math.min(Number(url.searchParams.get("limit") ?? "200") || 200, 500);
@@ -245,12 +253,16 @@ export default {
                         '[]'
                     ) AS reasons_json,
                     e.is_bump, e.thread_key, e.canonical_id,
-                    (
-                        SELECT COUNT(1)
-                        FROM emails eb
-                        WHERE eb.thread_key = e.thread_key
-                          AND COALESCE(eb.is_bump, 0) = 1
-                    ) AS bump_count,
+                    e.rfc_message_id, e.in_reply_to, e.references_json,
+                    CASE
+                        WHEN e.thread_key IS NULL OR trim(e.thread_key) = '' THEN 0
+                        ELSE (
+                            SELECT COUNT(1)
+                            FROM emails eb
+                            WHERE lower(trim(eb.thread_key)) = lower(trim(e.thread_key))
+                              AND COALESCE(eb.is_bump, 0) = 1
+                        )
+                    END AS bump_count,
                     NULL AS search_snippets,
                     e.film_title, e.logline, e.production_type, e.director_name,
                     COALESCE(
@@ -286,8 +298,8 @@ export default {
                         e.contacts_json
                     ) AS contacts_json
                 FROM emails e
-                WHERE e.thread_key = ?1
-                ORDER BY e.sent_at ASC
+                WHERE lower(trim(e.thread_key)) = lower(trim(?1))
+                ORDER BY e.sent_at DESC
                 LIMIT ?2`
             ).bind(threadKey, limit).all();
 
@@ -409,7 +421,29 @@ export default {
             if (category) { where.push(`e.category = ?`); args.push(category); }
             if (since) { where.push(`e.sent_at >= ?`); args.push(Number(since)); }
             if (until) { where.push(`e.sent_at <= ?`); args.push(Number(until)); }
-            if (groupBumps) where.push(`COALESCE(e.is_bump, 0) = 0`);
+            if (groupBumps) {
+                where.push(`(
+                    e.thread_key IS NULL OR trim(e.thread_key) = '' OR NOT EXISTS (
+                        SELECT 1
+                        FROM emails eg
+                        WHERE lower(trim(eg.thread_key)) = lower(trim(e.thread_key))
+                          AND eg.category = e.category
+                          ${includeDoNotCare ? "" : "AND eg.category != 'DO_NOT_CARE'"}
+                          AND (
+                            CASE WHEN COALESCE(eg.is_bump, 0) = 0 THEN 0 ELSE 1 END <
+                            CASE WHEN COALESCE(e.is_bump, 0) = 0 THEN 0 ELSE 1 END
+                            OR (
+                              CASE WHEN COALESCE(eg.is_bump, 0) = 0 THEN 0 ELSE 1 END =
+                              CASE WHEN COALESCE(e.is_bump, 0) = 0 THEN 0 ELSE 1 END
+                              AND (
+                                eg.sent_at < e.sent_at
+                                OR (eg.sent_at = e.sent_at AND eg.id < e.id)
+                              )
+                            )
+                          )
+                    )
+                )`);
+            }
             if (searchTerms.length > 0) {
                 appendSearchWhereClauses(where, args, searchTerms, "e", {
                     includeThreadMatches: groupBumps,
@@ -470,6 +504,19 @@ export default {
 
             const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
+            const orderBySql = groupBumps
+                ? `ORDER BY COALESCE(
+                    (
+                        SELECT MAX(es.sent_at)
+                        FROM emails es
+                        WHERE lower(trim(es.thread_key)) = lower(trim(e.thread_key))
+                          AND es.category = e.category
+                          ${includeDoNotCare ? "" : "AND es.category != 'DO_NOT_CARE'"}
+                    ),
+                    e.sent_at
+                ) DESC, e.sent_at DESC`
+                : `ORDER BY e.sent_at DESC`;
+
             const stmt = env.DATABASE_BINDING.prepare(
                 `SELECT
                     e.id, e.subject, ${bodyTextSelect}, ${bodyHtmlSelect},
@@ -483,12 +530,16 @@ export default {
                     e.confidence,
                     ${reasonsSelect},
                     e.is_bump, e.thread_key, e.canonical_id,
-                    (
-                        SELECT COUNT(1)
-                        FROM emails eb
-                        WHERE eb.thread_key = e.thread_key
-                          AND COALESCE(eb.is_bump, 0) = 1
-                    ) AS bump_count,
+                    e.rfc_message_id, e.in_reply_to, e.references_json,
+                    CASE
+                        WHEN e.thread_key IS NULL OR trim(e.thread_key) = '' THEN 0
+                        ELSE (
+                            SELECT COUNT(1)
+                            FROM emails eb
+                            WHERE lower(trim(eb.thread_key)) = lower(trim(e.thread_key))
+                              AND COALESCE(eb.is_bump, 0) = 1
+                        )
+                    END AS bump_count,
                     ${searchSnippetSelect},
                     e.film_title, e.logline, e.production_type, e.director_name,
                     ${rolesSelect},
@@ -500,7 +551,7 @@ export default {
                     ${contactsSelect}
                 FROM emails e
                 ${whereSql}
-                ORDER BY e.sent_at DESC
+                ${orderBySql}
                 LIMIT ? OFFSET ?`
             );
 
@@ -550,6 +601,20 @@ export default {
                 const bodyTextRaw = data.text?.plain ?? (bodyHtml ? htmlToPlainText(bodyHtml) : "");
                 const bodyText = normalizeBodyForIngest(subject, bodyTextRaw);
                 const providerMessageId = data.messageId ?? data.id ?? null;
+                const headers = data.headers ?? null;
+                const rfcMessageId = normalizeMessageId(
+                    data.messageId ??
+                    getHeaderValue(headers, "message-id") ??
+                    providerMessageId
+                );
+                const inReplyTo = normalizeMessageId(
+                    data.inReplyTo ??
+                    getHeaderValue(headers, "in-reply-to")
+                );
+                const references = parseMessageIdList(
+                    data.references ??
+                    getHeaderValue(headers, "references")
+                );
                 const sentAt = parseSentAtToEpochSeconds(data.date);
                 const listserv = payload.account ?? "emailengine";
                 let attachments = Array.isArray(data.attachments) ? data.attachments : [];
@@ -576,6 +641,9 @@ export default {
                     bodyHtml,
                     sentAt,
                     attachments,
+                    rfcMessageId,
+                    inReplyTo,
+                    references,
                 });
 
                 return jsonResponse({ ok: true, ...result });
@@ -616,6 +684,15 @@ export default {
                         const source = pick(obj, ["source", "Source"]) ?? "manual";
                         const providerMessageId =
                             pick(obj, ["provider_message_id", "message_id", "Message-Id", "message-id"]) ?? null;
+                        const rfcMessageId = normalizeMessageId(
+                            pick(obj, ["rfc_message_id", "message_id", "Message-Id", "message-id", "provider_message_id"])
+                        );
+                        const inReplyTo = normalizeMessageId(
+                            pick(obj, ["in_reply_to", "In-Reply-To", "in-reply-to"])
+                        );
+                        const references = parseMessageIdList(
+                            pick(obj, ["references", "References"])
+                        );
 
                         const sentAt = parseSentAtToEpochSeconds(
                             pick(obj, ["sent_at", "SentAt", "date", "Date", "timestamp", "Timestamp"])
@@ -636,6 +713,9 @@ export default {
                             bodyHtml,
                             sentAt,
                             attachments: [],
+                            rfcMessageId,
+                            inReplyTo,
+                            references,
                         });
 
                         if (result.skipped) skippedUserCreated++;

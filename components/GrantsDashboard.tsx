@@ -402,6 +402,7 @@ export function GrantsDashboard({
         <SearchBar
           onSearch={onSearchQueryChange}
           placeholder="Search grants..."
+          defaultValue={searchQuery}
         />
       </div>
 
@@ -522,7 +523,7 @@ export function GrantsDashboard({
         <div className="grants-sidebar-desktop">
           {selectedEmail ? (
             <div className="grants-detail-panel">
-              <EmailDetailPanel email={selectedEmail} type="grant" />
+              <EmailDetailPanel email={selectedEmail} type="grant" searchQuery={searchQuery || undefined} />
             </div>
           ) : (
             <ResourcesSidebar />
@@ -543,7 +544,7 @@ export function GrantsDashboard({
               borderRadius: "9999px",
               margin: "10px auto 0",
             }} />
-            <EmailDetailPanel email={selectedEmail} type="grant" />
+            <EmailDetailPanel email={selectedEmail} type="grant" searchQuery={searchQuery || undefined} />
           </div>
         </div>
       )}

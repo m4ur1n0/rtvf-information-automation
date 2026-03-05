@@ -766,6 +766,7 @@ export function PetitionsDashboard({
         <SearchBar
           onSearch={onSearchQueryChange}
           placeholder="Search crew calls..."
+          defaultValue={searchQuery}
         />
       </div>
 
@@ -1122,6 +1123,7 @@ export function PetitionsDashboard({
               <EmailDetailPanel
                 email={selectedPetition.email}
                 type="petition"
+                searchQuery={searchQuery || undefined}
               />
             </div>
           ) : (
@@ -1149,7 +1151,7 @@ export function PetitionsDashboard({
                 margin: "10px auto 0",
               }}
             />
-            <EmailDetailPanel email={selectedPetition.email} type="petition" />
+            <EmailDetailPanel email={selectedPetition.email} type="petition" searchQuery={searchQuery || undefined} />
           </div>
         </div>
       )}
